@@ -1,0 +1,35 @@
+# Xcode
+build/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xcworkspace/xcuserdata/
+*.xcworkspace/xcshareddata/
+DerivedData/
+.DS_Store
+
+# Xcode user-specific files
+xcuserdata/
+*.xcuserdatad/
+
+# CocoaPods
+Pods/
+Podfile.lock
+
+# SPM
+.build/
+.swiftpm/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# App-specific
+*.ipa
+*.dSYM.zip
+*.dSYM
