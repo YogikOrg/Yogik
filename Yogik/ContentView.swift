@@ -21,7 +21,8 @@ struct ContentView: View {
     @State private var phase: Phase = .idle
     @State private var showingDial: Bool = false
     @AppStorage("progressSoundID") private var progressSoundID: Int = 1057
-    @AppStorage("poseEndChimeID") private var poseEndChimeID: Int = 1115
+    @AppStorage("selectedVoiceID") private var selectedVoiceID: String = ""
+    @AppStorage("prepTimeSeconds") private var prepTimeSeconds: Int = 5
 
     // active picker sheet (nil = none)
     enum PickerSelection: String, Identifiable {
@@ -30,7 +31,6 @@ struct ContentView: View {
     }
     @State private var activePicker: PickerSelection? = nil
     @State private var showingSettings: Bool = false
-    @AppStorage("selectedVoiceID") private var selectedVoiceID: String = ""
     private let speechSynthesizer = AVSpeechSynthesizer()
 
     private let systemChimeOptions: [(id: Int, name: String)] = [
@@ -79,7 +79,6 @@ struct ContentView: View {
         var transitionSeconds: Int
         var holdSeconds: Int
         var progressSoundID: Int
-        var poseEndChimeID: Int
         var date: Date
         var laps: Int
 
@@ -213,19 +212,20 @@ struct ContentView: View {
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .padding(.top, 8)
+                            .padding(.horizontal, 16)
                         
                         if history.isEmpty {
                             Text("No saved timers yet")
                                 .foregroundColor(.secondary)
                                 .font(.caption)
+                                .padding(.horizontal, 16)
                         } else {
-                            VStack(spacing: 8) {
+                            List {
                                 ForEach(history) { item in
                                     Button(action: {
                                         transitionSeconds = item.transitionSeconds
                                         holdSeconds = item.holdSeconds
                                         progressSoundID = item.progressSoundID
-                                        poseEndChimeID = item.poseEndChimeID
                                         start()
                                         showingDial = true
                                     }) {
@@ -248,13 +248,14 @@ struct ContentView: View {
                                                     .foregroundColor(.secondary)
                                             }
                                         }
-                                        .padding(10)
-                                        .background(Color(.systemGray6))
-                                        .cornerRadius(6)
                                     }
+                                    .listRowBackground(Color(.systemGray6))
+                                    .listRowSeparator(.hidden)
                                 }
                                 .onDelete(perform: deleteHistory)
                             }
+                            .listStyle(.plain)
+                            .frame(maxHeight: .infinity)
                         }
                         
                         Spacer()
@@ -394,11 +395,14 @@ struct ContentView: View {
         // Call prep prompt before starting
         speakPrepPrompt()
 
-        // schedule timer on main runloop
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            tick()
+        // Delay timer start to allow prep time
+        DispatchQueue.main.asyncAfter(deadline: .now() + Double(prepTimeSeconds)) {
+            // schedule timer on main runloop
+            self.timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+                self.tick()
+            }
+            RunLoop.main.add(self.timer!, forMode: .common)
         }
-        RunLoop.main.add(timer!, forMode: .common)
         
         // Keep screen awake while timer is running
         UIApplication.shared.isIdleTimerDisabled = true
@@ -459,7 +463,6 @@ struct ContentView: View {
             } else {
                 // hold is 0 -> a lap completes immediately
                 lapCount += 1
-                playChime(soundID: poseEndChimeID)
                 // Start next lap
                 if transitionSeconds > 0 {
                     phase = .transition
@@ -478,7 +481,6 @@ struct ContentView: View {
         case .hold:
             // end of lap
             lapCount += 1
-            playChime(soundID: poseEndChimeID)
             // Start next lap depending on configured times
             if transitionSeconds > 0 {
                 phase = .transition
@@ -522,14 +524,14 @@ struct ContentView: View {
     private func addOrUpdateHistoryOnStart() {
         // create a new entry for this setup (or move existing to front)
         let now = Date()
-        if let idx = history.firstIndex(where: { $0.transitionSeconds == transitionSeconds && $0.holdSeconds == holdSeconds && $0.progressSoundID == progressSoundID && $0.poseEndChimeID == poseEndChimeID }) {
+        if let idx = history.firstIndex(where: { $0.transitionSeconds == transitionSeconds && $0.holdSeconds == holdSeconds && $0.progressSoundID == progressSoundID }) {
             // move to front and update date/laps
             var e = history.remove(at: idx)
             e.date = now
             e.laps = 0
             history.insert(e, at: 0)
         } else {
-            let entry = TimerSetup(id: UUID(), transitionSeconds: transitionSeconds, holdSeconds: holdSeconds, progressSoundID: progressSoundID, poseEndChimeID: poseEndChimeID, date: now, laps: 0)
+            let entry = TimerSetup(id: UUID(), transitionSeconds: transitionSeconds, holdSeconds: holdSeconds, progressSoundID: progressSoundID, date: now, laps: 0)
             history.insert(entry, at: 0)
             if history.count > 5 {
                 history.removeLast()
@@ -540,7 +542,7 @@ struct ContentView: View {
 
     private func updateHistoryOnStop() {
         // find matching entry and update laps and date
-        if let idx = history.firstIndex(where: { $0.transitionSeconds == transitionSeconds && $0.holdSeconds == holdSeconds && $0.progressSoundID == progressSoundID && $0.poseEndChimeID == poseEndChimeID }) {
+        if let idx = history.firstIndex(where: { $0.transitionSeconds == transitionSeconds && $0.holdSeconds == holdSeconds && $0.progressSoundID == progressSoundID }) {
             history[idx].laps = lapCount
             history[idx].date = Date()
             // move to front

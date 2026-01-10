@@ -35,6 +35,7 @@ struct PranayamaView: View {
     @AppStorage("selectedVoiceID") private var selectedVoiceID: String = ""
     @AppStorage("prepTimeSeconds") private var prepTimeSeconds: Int = 5
     @AppStorage("pranayamaProgressSoundEnabled") private var pranayamaProgressSoundEnabled: Bool = true
+    @AppStorage("progressSoundID") private var progressSoundID: Int = 1057
     private let speechSynthesizer = AVSpeechSynthesizer()
     
     enum BreathPhase {
@@ -506,8 +507,9 @@ struct PranayamaView: View {
     }
     
     private func playChime() {
-        // Play Chord sound (ID: 1057) every second during breathing
-        AudioServicesPlaySystemSound(SystemSoundID(1057))
+        // Play progress sound every second during breathing
+        guard progressSoundID != 0 else { return }
+        AudioServicesPlaySystemSound(SystemSoundID(progressSoundID))
     }
     
     private func playPhaseTransitionSound() {

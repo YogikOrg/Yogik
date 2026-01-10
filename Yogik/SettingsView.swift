@@ -4,7 +4,6 @@ import AVFoundation
 
 struct SettingsView: View {
     @AppStorage("progressSoundID") private var progressSoundID: Int = 1057
-    @AppStorage("poseEndChimeID") private var poseEndChimeID: Int = 1115
     @AppStorage("selectedVoiceID") private var selectedVoiceID: String = ""
     @AppStorage("prepTimeSeconds") private var prepTimeSeconds: Int = 5
     @AppStorage("pranayamaProgressSoundEnabled") private var pranayamaProgressSoundEnabled: Bool = true
@@ -60,15 +59,11 @@ struct SettingsView: View {
                     }
                 }
                 
-                Section(header: Text("Prep Time (Pranayama)")) {
+                Section(header: Text("Prep Time")) {
                     Stepper("Prep Time: \(prepTimeSeconds)s", value: $prepTimeSeconds, in: 1...60)
                 }
                 
-                Section(header: Text("Pranayama Progress Sound")) {
-                    Toggle("Play sound every count", isOn: $pranayamaProgressSoundEnabled)
-                }
-                
-                Section(header: Text("Progress Sound (beats during hold)")) {
+                Section(header: Text("Progress Sound")) {
                     Picker("Progress Sound", selection: $progressSoundID) {
                         ForEach(systemChimeOptions, id: \.id) { option in
                             Text(option.name).tag(option.id)
@@ -79,17 +74,9 @@ struct SettingsView: View {
                         playChime(soundID: newValue)
                     }
                 }
-
-                Section(header: Text("Pose End Chime (end of lap)")) {
-                    Picker("Pose End Chime", selection: $poseEndChimeID) {
-                        ForEach(systemChimeOptions, id: \.id) { option in
-                            Text(option.name).tag(option.id)
-                        }
-                    }
-                    .pickerStyle(MenuPickerStyle())
-                    .onChange(of: poseEndChimeID) { oldValue, newValue in
-                        playChime(soundID: newValue)
-                    }
+                
+                Section(header: Text("Pranayama Progress Sound")) {
+                    Toggle("Play sound every count", isOn: $pranayamaProgressSoundEnabled)
                 }
 
                 Section {
@@ -105,20 +92,26 @@ struct SettingsView: View {
             // Exclude novelty/character voices
             let excludedNames = ["Albert", "Bad News", "Bahh", "Bells", "Boing", "Bubbles", "Cellos", "Eddy", "Flo", "Fred", "Good News", "Jester", "Organ", "Ralph", "Reed", "Rocko", "Sandy", "Shelley", "Trinoids", "Whisper", "Wobble", "Zarvox", "Junior", "Kathy"]
             
-            // Filter for standard English voices only
+            // Filter for English, Hindi, and other Indian language voices
             availableVoices = allVoices.filter { voice in
-                let isEnglish = voice.language.hasPrefix("en")
                 let name = voice.name
                 let isExcluded = excludedNames.contains(where: { name.contains($0) })
                 
-                guard isEnglish && !isExcluded && !seenNames.contains(name) else { return false }
+                // Include English, Hindi (hi-IN), and other Indian voices
+                let isEnglish = voice.language.hasPrefix("en")
+                let isHindi = voice.language.hasPrefix("hi")
+                let isIndian = voice.language.hasSuffix("-IN")
+                
+                guard (isEnglish || isHindi || isIndian) && !isExcluded && !seenNames.contains(name) else { return false }
                 seenNames.insert(name)
                 return true
             }.sorted { ($0.name) < ($1.name) }
             
             if selectedVoiceID.isEmpty && !availableVoices.isEmpty {
-                // Try to find Karen as default
-                if let karen = availableVoices.first(where: { $0.name.contains("Karen") }) {
+                // Try to find Soumya first, then Karen, then default
+                if let soumya = availableVoices.first(where: { $0.name.contains("Soumya") }) {
+                    selectedVoiceID = soumya.identifier
+                } else if let karen = availableVoices.first(where: { $0.name.contains("Karen") }) {
                     selectedVoiceID = karen.identifier
                 } else {
                     selectedVoiceID = availableVoices[0].identifier
