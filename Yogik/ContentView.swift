@@ -139,57 +139,84 @@ struct ContentView: View {
                     .padding()
                     Spacer()
                 } else {
-                    // Setup UI: merged Timer Setup + Saved timers
-                    Form {
-                        Section(header: Text("Timer Setup")) {
-                            // Compact rows that open wheel pickers in a sheet
+                    // Setup UI: compact inline display like Pranayama
+                    VStack(spacing: 16) {
+                        // Compact inline timer ratios
+                        HStack(spacing: 12) {
+                            Text("Transition:").font(.subheadline).fontWeight(.semibold)
+                            Spacer()
                             Button(action: {
                                 guard !isRunning else { return }
-                                // clamp value into 1...60 before presenting
                                 transitionSeconds = min(max(transitionSeconds, 1), 60)
                                 activePicker = .transition
                             }) {
-                                HStack {
-                                    Text("Transition: \(transitionSeconds) s")
-                                    Spacer()
+                                HStack(spacing: 6) {
+                                    Text("\(transitionSeconds) s")
+                                        .font(.system(size: 16, weight: .semibold, design: .monospaced))
                                     Image(systemName: "chevron.right")
-                                        .foregroundColor(.secondary)
+                                        .font(.caption)
                                 }
+                                .foregroundColor(.blue)
                             }
                             .disabled(isRunning)
-
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
+                        
+                        HStack(spacing: 12) {
+                            Text("Hold:").font(.subheadline).fontWeight(.semibold)
+                            Spacer()
                             Button(action: {
                                 guard !isRunning else { return }
                                 holdSeconds = min(max(holdSeconds, 1), 60)
                                 activePicker = .hold
                             }) {
-                                HStack {
-                                    Text("Hold: \(holdSeconds) s")
-                                    Spacer()
+                                HStack(spacing: 6) {
+                                    Text("\(holdSeconds) s")
+                                        .font(.system(size: 16, weight: .semibold, design: .monospaced))
                                     Image(systemName: "chevron.right")
-                                        .foregroundColor(.secondary)
+                                        .font(.caption)
                                 }
+                                .foregroundColor(.blue)
                             }
                             .disabled(isRunning)
-
-                            // Chime settings moved to dedicated Settings screen (gear)
-
-                            Button(action: { start(); showingDial = true }) {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "play.fill")
-                                    Text("Start")
-                                }
-                                .frame(maxWidth: .infinity)
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(isRunning || (transitionSeconds + holdSeconds) == 0)
                         }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
 
-                        Section(header: Text("Saved timers")) {
-                            if history.isEmpty {
-                                Text("No saved timers yet")
-                                    .foregroundColor(.secondary)
-                            } else {
+                        // Start button
+                        Button(action: { start(); showingDial = true }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "play.fill")
+                                Text("Start")
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(12)
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
+                            .fontWeight(.semibold)
+                        }
+                        .disabled(isRunning || (transitionSeconds + holdSeconds) == 0)
+                        
+                        Divider()
+                        
+                        // Saved timers section
+                        Text("Saved timers")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .padding(.top, 8)
+                        
+                        if history.isEmpty {
+                            Text("No saved timers yet")
+                                .foregroundColor(.secondary)
+                                .font(.caption)
+                        } else {
+                            VStack(spacing: 8) {
                                 ForEach(history) { item in
                                     Button(action: {
                                         transitionSeconds = item.transitionSeconds
@@ -200,34 +227,47 @@ struct ContentView: View {
                                         showingDial = true
                                     }) {
                                         HStack {
-                                            VStack(alignment: .leading) {
+                                            VStack(alignment: .leading, spacing: 2) {
                                                 Text(item.name)
                                                     .font(.headline)
+                                                    .foregroundColor(.primary)
                                                 Text(item.date, style: .date)
                                                     .font(.caption)
                                                     .foregroundColor(.secondary)
                                             }
                                             Spacer()
-                                            VStack(alignment: .trailing) {
+                                            VStack(alignment: .trailing, spacing: 2) {
                                                 Text("\(item.laps) laps")
                                                     .font(.subheadline)
+                                                    .foregroundColor(.primary)
                                                 Text("T:\(item.transitionSeconds) H:\(item.holdSeconds)")
                                                     .font(.caption2)
                                                     .foregroundColor(.secondary)
                                             }
                                         }
+                                        .padding(10)
+                                        .background(Color(.systemGray6))
+                                        .cornerRadius(6)
                                     }
-                                    .buttonStyle(.automatic)
                                 }
                                 .onDelete(perform: deleteHistory)
                             }
                         }
+                        
+                        Spacer()
                     }
-                    Spacer()
+                    .padding(16)
                 }
             }
-            .navigationTitle("Yogik")
+            .navigationTitle("Yoga")
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Image("BrandIcon")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 36, height: 36)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showingSettings = true }) {
                         Image(systemName: "gearshape")

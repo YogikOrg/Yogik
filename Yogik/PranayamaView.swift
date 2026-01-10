@@ -1,6 +1,7 @@
 import SwiftUI
 import AudioToolbox
 import UIKit
+import AVFoundation
 
 struct PranayamaView: View {
     @State private var breathInRatio: Int = 4
@@ -30,6 +31,7 @@ struct PranayamaView: View {
     @State private var timer: Timer? = nil
     @State private var isPaused: Bool = false
     @State private var showingDial: Bool = false
+    private let speechSynthesizer = AVSpeechSynthesizer()
     
     enum BreathPhase {
         case idle, breathIn, holdIn, breathOut, holdOut
@@ -60,6 +62,7 @@ struct PranayamaView: View {
     
     @State private var history: [TimerSetup] = []
     private let historyKey = "Yogik.pranayamaHistory"
+    @State private var showingSettings: Bool = false
     
     var body: some View {
         NavigationView {
@@ -237,6 +240,23 @@ struct PranayamaView: View {
                 }
             }
             .navigationTitle("Pranayama")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Image("BrandIcon")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 36, height: 36)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { showingSettings = true }) {
+                        Image(systemName: "gearshape")
+                    }
+                }
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
+            }
             .sheet(item: $activePicker) { selection in
                 NavigationView {
                     VStack {
@@ -346,14 +366,18 @@ struct PranayamaView: View {
         if breathInRatio > 0 {
             phase = .breathIn
             remaining = breathInRatio * selectedPace.multiplier
+            speakPhasePrompt(.breathIn)
         } else {
             advanceToNextPhase()
         }
         
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            tick()
+        // Delay timer start to allow speech to initialize
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+                self.tick()
+            }
+            RunLoop.main.add(self.timer!, forMode: .common)
         }
-        RunLoop.main.add(timer!, forMode: .common)
         
         UIApplication.shared.isIdleTimerDisabled = true
     }
@@ -405,15 +429,15 @@ struct PranayamaView: View {
             if holdInRatio > 0 {
                 phase = .holdIn
                 remaining = holdInRatio * selectedPace.multiplier
-                playPhaseTransitionSound()
+                speakPhasePrompt(.holdIn)
             } else if breathOutRatio > 0 {
                 phase = .breathOut
                 remaining = breathOutRatio * selectedPace.multiplier
-                playPhaseTransitionSound()
+                speakPhasePrompt(.breathOut)
             } else if holdOutRatio > 0 {
                 phase = .holdOut
                 remaining = holdOutRatio * selectedPace.multiplier
-                playPhaseTransitionSound()
+                speakPhasePrompt(.holdOut)
             } else {
                 completeRound()
             }
@@ -422,11 +446,11 @@ struct PranayamaView: View {
             if breathOutRatio > 0 {
                 phase = .breathOut
                 remaining = breathOutRatio * selectedPace.multiplier
-                playPhaseTransitionSound()
+                speakPhasePrompt(.breathOut)
             } else if holdOutRatio > 0 {
                 phase = .holdOut
                 remaining = holdOutRatio * selectedPace.multiplier
-                playPhaseTransitionSound()
+                speakPhasePrompt(.holdOut)
             } else {
                 completeRound()
             }
@@ -435,7 +459,7 @@ struct PranayamaView: View {
             if holdOutRatio > 0 {
                 phase = .holdOut
                 remaining = holdOutRatio * selectedPace.multiplier
-                playPhaseTransitionSound()
+                speakPhasePrompt(.holdOut)
             } else {
                 completeRound()
             }
@@ -447,11 +471,11 @@ struct PranayamaView: View {
     
     private func completeRound() {
         roundCount += 1
-        playLapCompletionSound()
         // Start next round
         if breathInRatio > 0 {
             phase = .breathIn
             remaining = breathInRatio * selectedPace.multiplier
+            speakPhasePrompt(.breathIn)
         } else {
             advanceToNextPhase()
         }
@@ -472,7 +496,30 @@ struct PranayamaView: View {
         AudioServicesPlaySystemSound(SystemSoundID(1115))
     }
     
-    // MARK: - History persistence
+    private func speakPhasePrompt(_ phase: BreathPhase) {
+        // Stop any ongoing speech
+        speechSynthesizer.stopSpeaking(at: .immediate)
+        
+        let utterance: AVSpeechUtterance
+        
+        switch phase {
+        case .breathIn:
+            utterance = AVSpeechUtterance(string: "Inhale")
+        case .holdIn:
+            utterance = AVSpeechUtterance(string: "Hold")
+        case .breathOut:
+            utterance = AVSpeechUtterance(string: "Exhale")
+        case .holdOut:
+            utterance = AVSpeechUtterance(string: "Hold")
+        case .idle:
+            return
+        }
+        
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate
+        speechSynthesizer.speak(utterance)
+    }
+    
+    // MARK: - History Functions
     private func loadHistory() {
         guard let data = UserDefaults.standard.data(forKey: historyKey) else { return }
         do {
