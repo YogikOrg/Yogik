@@ -5,7 +5,9 @@ import AVFoundation
 struct SettingsView: View {
     @AppStorage("progressSoundID") private var progressSoundID: Int = 1057
     @AppStorage("poseEndChimeID") private var poseEndChimeID: Int = 1115
-    @AppStorage("selectedVoiceID") private var selectedVoiceID: String = AVSpeechSynthesisVoice.currentLanguageCode() ?? ""
+    @AppStorage("selectedVoiceID") private var selectedVoiceID: String = ""
+    @AppStorage("prepTimeSeconds") private var prepTimeSeconds: Int = 5
+    @AppStorage("pranayamaProgressSoundEnabled") private var pranayamaProgressSoundEnabled: Bool = true
     @Environment(\.dismiss) private var dismiss
     @State private var availableVoices: [AVSpeechSynthesisVoice] = []
 
@@ -49,13 +51,21 @@ struct SettingsView: View {
                 Section(header: Text("Voice for Prompts")) {
                     Picker("Voice", selection: $selectedVoiceID) {
                         ForEach(availableVoices, id: \.identifier) { voice in
-                            Text(voice.name ?? "Unknown").tag(voice.identifier)
+                            Text(voice.name).tag(voice.identifier)
                         }
                     }
                     .pickerStyle(MenuPickerStyle())
                     .onChange(of: selectedVoiceID) { oldValue, newValue in
                         testVoicePrompt()
                     }
+                }
+                
+                Section(header: Text("Prep Time (Pranayama)")) {
+                    Stepper("Prep Time: \(prepTimeSeconds)s", value: $prepTimeSeconds, in: 1...60)
+                }
+                
+                Section(header: Text("Pranayama Progress Sound")) {
+                    Toggle("Play sound every count", isOn: $pranayamaProgressSoundEnabled)
                 }
                 
                 Section(header: Text("Progress Sound (beats during hold)")) {
@@ -98,17 +108,17 @@ struct SettingsView: View {
             // Filter for standard English voices only
             availableVoices = allVoices.filter { voice in
                 let isEnglish = voice.language.hasPrefix("en")
-                let name = voice.name ?? ""
+                let name = voice.name
                 let isExcluded = excludedNames.contains(where: { name.contains($0) })
                 
                 guard isEnglish && !isExcluded && !seenNames.contains(name) else { return false }
                 seenNames.insert(name)
                 return true
-            }.sorted { ($0.name ?? "") < ($1.name ?? "") }
+            }.sorted { ($0.name) < ($1.name) }
             
             if selectedVoiceID.isEmpty && !availableVoices.isEmpty {
                 // Try to find Karen as default
-                if let karen = availableVoices.first(where: { $0.name?.contains("Karen") ?? false }) {
+                if let karen = availableVoices.first(where: { $0.name.contains("Karen") }) {
                     selectedVoiceID = karen.identifier
                 } else {
                     selectedVoiceID = availableVoices[0].identifier

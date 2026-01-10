@@ -5,8 +5,8 @@ import AVFoundation
 
 struct PranayamaView: View {
     @State private var breathInRatio: Int = 4
-    @State private var holdInRatio: Int = 8
-    @State private var breathOutRatio: Int = 16
+    @State private var holdInRatio: Int = 6
+    @State private var breathOutRatio: Int = 8
     @State private var holdOutRatio: Int = 0
     
     enum Pace: String, CaseIterable, Identifiable {
@@ -15,23 +15,26 @@ struct PranayamaView: View {
         case slow = "Slow"
         
         var id: String { rawValue }
-        var multiplier: Int {
+        var multiplier: Double {
             switch self {
-            case .fast: return 1
-            case .medium: return 2
-            case .slow: return 3
+            case .fast: return 1.0
+            case .medium: return 1.5
+            case .slow: return 2.0
             }
         }
     }
     
-    @State private var selectedPace: Pace = .fast
+    @State private var selectedPace: Pace = .medium
     @State private var isRunning: Bool = false
     @State private var remaining: Int = 0
     @State private var roundCount: Int = 0
     @State private var timer: Timer? = nil
     @State private var isPaused: Bool = false
     @State private var showingDial: Bool = false
+    @State private var countElapsed: Double = 0  // Elapsed time within current count
     @AppStorage("selectedVoiceID") private var selectedVoiceID: String = ""
+    @AppStorage("prepTimeSeconds") private var prepTimeSeconds: Int = 5
+    @AppStorage("pranayamaProgressSoundEnabled") private var pranayamaProgressSoundEnabled: Bool = true
     private let speechSynthesizer = AVSpeechSynthesizer()
     
     enum BreathPhase {
@@ -86,7 +89,7 @@ struct PranayamaView: View {
                             Text(phaseText)
                                 .font(.headline)
                                 .foregroundColor(phaseColor)
-                            Text("\(remaining) s")
+                            Text("\(remaining)")
                                 .font(.system(size: 48, weight: .bold, design: .monospaced))
                             Text("Rounds: \(roundCount)")
                                 .font(.subheadline)
@@ -289,30 +292,27 @@ struct PranayamaView: View {
     }
     
     private var totalCycleTime: Int {
-        (breathInRatio + holdInRatio + breathOutRatio + holdOutRatio) * selectedPace.multiplier
-    }
-    
-    private var currentPhaseTotal: Int {
-        let ratio: Int
-        switch phase {
-        case .breathIn:
-            ratio = breathInRatio
-        case .holdIn:
-            ratio = holdInRatio
-        case .breathOut:
-            ratio = breathOutRatio
-        case .holdOut:
-            ratio = holdOutRatio
-        case .idle:
-            return 1
-        }
-        return max(ratio * selectedPace.multiplier, 1)
+        // Total counts in a full cycle (without pace multiplier, pace affects timing not counts)
+        breathInRatio + holdInRatio + breathOutRatio + holdOutRatio
     }
     
     private var progress: Double {
-        let total = currentPhaseTotal
-        guard total > 0 else { return 0 }
-        return 1.0 - Double(remaining) / Double(total)
+        // Progress based on count within current phase
+        // remaining is the count, countElapsed is the fractional progress within that count
+        guard remaining > 0 else { return 1.0 }
+        let timePerCount = selectedPace.multiplier
+        let progress = 1.0 - (Double(remaining - 1) + countElapsed / timePerCount) / Double(currentPhaseRatio)
+        return min(max(progress, 0), 1.0)
+    }
+    
+    private var currentPhaseRatio: Int {
+        switch phase {
+        case .breathIn: return breathInRatio
+        case .holdIn: return holdInRatio
+        case .breathOut: return breathOutRatio
+        case .holdOut: return holdOutRatio
+        case .idle: return 1
+        }
     }
     
     private var phaseColor: Color {
@@ -362,20 +362,27 @@ struct PranayamaView: View {
         roundCount = 0
         isRunning = true
         isPaused = false
+        countElapsed = 0
         
-        // Start with breathIn if it has a ratio > 0
-        if breathInRatio > 0 {
-            phase = .breathIn
-            remaining = breathInRatio * selectedPace.multiplier
-            speakPhasePrompt(.breathIn)
-        } else {
-            advanceToNextPhase()
-        }
+        // Play prep prompt
+        speakPrepPrompt()
         
-        // Delay timer start to allow speech to initialize
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            self.timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-                self.tick()
+        // Delay timer start to allow prep time before first inhale prompt
+        DispatchQueue.main.asyncAfter(deadline: .now() + Double(prepTimeSeconds)) {
+            // Start with breathIn if it has a ratio > 0
+            if self.breathInRatio > 0 {
+                self.phase = .breathIn
+                self.remaining = self.breathInRatio
+                self.countElapsed = 0
+                self.speakPhasePrompt(.breathIn)
+            } else {
+                self.advanceToNextPhase()
+            }
+            
+            // Timer interval is 0.1 seconds for smooth progress tracking
+            let timePerCount = selectedPace.multiplier
+            self.timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+                self.tick(timePerCount: timePerCount)
             }
             RunLoop.main.add(self.timer!, forMode: .common)
         }
@@ -401,8 +408,9 @@ struct PranayamaView: View {
         guard isRunning else { return }
         if isPaused {
             isPaused = false
-            timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-                tick()
+            let timePerCount = selectedPace.multiplier
+            timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+                self.tick(timePerCount: timePerCount)
             }
             RunLoop.main.add(timer!, forMode: .common)
         } else {
@@ -412,70 +420,85 @@ struct PranayamaView: View {
         }
     }
     
-    private func tick() {
-        if remaining > 0 {
-            // Play progress sound (Chord) every second
-            playChime()
-            remaining -= 1
-            return
-        }
+    private func tick(timePerCount: Double) {
+        countElapsed += 0.1
         
-        // Phase complete, advance
-        advanceToNextPhase()
+        // Check if a full count has elapsed
+        if countElapsed >= timePerCount {
+            // Play chord chime for this count if enabled
+            if pranayamaProgressSoundEnabled {
+                playChime()
+            }
+            
+            countElapsed = 0
+            remaining -= 1
+            
+            if remaining <= 0 {
+                // Phase complete, advance to next
+                advanceToNextPhase()
+            }
+        }
     }
     
     private func advanceToNextPhase() {
+        countElapsed = 0  // Reset elapsed time for new phase
+        
         switch phase {
         case .idle, .breathIn:
             if holdInRatio > 0 {
                 phase = .holdIn
-                remaining = holdInRatio * selectedPace.multiplier
+                remaining = holdInRatio
                 speakPhasePrompt(.holdIn)
             } else if breathOutRatio > 0 {
                 phase = .breathOut
-                remaining = breathOutRatio * selectedPace.multiplier
+                remaining = breathOutRatio
                 speakPhasePrompt(.breathOut)
             } else if holdOutRatio > 0 {
                 phase = .holdOut
-                remaining = holdOutRatio * selectedPace.multiplier
+                remaining = holdOutRatio
                 speakPhasePrompt(.holdOut)
             } else {
+                // No more phases, complete the round
                 completeRound()
             }
             
         case .holdIn:
             if breathOutRatio > 0 {
                 phase = .breathOut
-                remaining = breathOutRatio * selectedPace.multiplier
+                remaining = breathOutRatio
                 speakPhasePrompt(.breathOut)
             } else if holdOutRatio > 0 {
                 phase = .holdOut
-                remaining = holdOutRatio * selectedPace.multiplier
+                remaining = holdOutRatio
                 speakPhasePrompt(.holdOut)
             } else {
+                // No more phases, complete the round
                 completeRound()
             }
             
         case .breathOut:
             if holdOutRatio > 0 {
                 phase = .holdOut
-                remaining = holdOutRatio * selectedPace.multiplier
+                remaining = holdOutRatio
                 speakPhasePrompt(.holdOut)
             } else {
+                // No holdOut phase, complete the round here
                 completeRound()
             }
             
         case .holdOut:
+            // After holdOut, the full cycle is complete - increment round
             completeRound()
         }
     }
     
     private func completeRound() {
+        countElapsed = 0  // Reset elapsed time for new round
         roundCount += 1
         // Start next round
         if breathInRatio > 0 {
             phase = .breathIn
-            remaining = breathInRatio * selectedPace.multiplier
+            remaining = breathInRatio
             speakPhasePrompt(.breathIn)
         } else {
             advanceToNextPhase()
@@ -495,6 +518,18 @@ struct PranayamaView: View {
     private func playLapCompletionSound() {
         // Play Bell sound (ID: 1115) at lap completion
         AudioServicesPlaySystemSound(SystemSoundID(1115))
+    }
+    
+    private func speakPrepPrompt() {
+        let utterance = AVSpeechUtterance(string: "Prepare for the breathing exercise. Take position")
+        
+        // Set the voice if available
+        if let voice = AVSpeechSynthesisVoice(identifier: selectedVoiceID) {
+            utterance.voice = voice
+        }
+        
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate
+        speechSynthesizer.speak(utterance)
     }
     
     private func speakPhasePrompt(_ phase: BreathPhase) {
