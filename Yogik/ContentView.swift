@@ -8,6 +8,7 @@
 import SwiftUI
 import AudioToolbox
 import UIKit
+import AVFoundation
 
 struct ContentView: View {
     @State private var transitionSeconds: Int = 5
@@ -29,6 +30,8 @@ struct ContentView: View {
     }
     @State private var activePicker: PickerSelection? = nil
     @State private var showingSettings: Bool = false
+    @AppStorage("selectedVoiceID") private var selectedVoiceID: String = ""
+    private let speechSynthesizer = AVSpeechSynthesizer()
 
     private let systemChimeOptions: [(id: Int, name: String)] = [
         // None option
@@ -388,6 +391,9 @@ struct ContentView: View {
             return
         }
 
+        // Call prep prompt before starting
+        speakPrepPrompt()
+
         // schedule timer on main runloop
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
             tick()
@@ -448,6 +454,8 @@ struct ContentView: View {
             if holdSeconds > 0 {
                 phase = .hold
                 remaining = holdSeconds
+                // Speak "Hold" when transitioning to hold phase
+                speakPhasePrompt("Hold")
             } else {
                 // hold is 0 -> a lap completes immediately
                 lapCount += 1
@@ -456,6 +464,8 @@ struct ContentView: View {
                 if transitionSeconds > 0 {
                     phase = .transition
                     remaining = transitionSeconds
+                    // Speak "Move to next pose" for next cycle
+                    speakPhasePrompt("Move to next pose")
                 } else if holdSeconds > 0 {
                     phase = .hold
                     remaining = holdSeconds
@@ -473,6 +483,8 @@ struct ContentView: View {
             if transitionSeconds > 0 {
                 phase = .transition
                 remaining = transitionSeconds
+                // Speak "Move to next pose" when starting new transition
+                speakPhasePrompt("Move to next pose")
             } else if holdSeconds > 0 {
                 // transition is zero, continue with hold-only laps
                 phase = .hold
@@ -548,6 +560,28 @@ struct ContentView: View {
         // Play the system sound if not "None" (id: 0)
         guard soundID != 0 else { return }
         AudioServicesPlaySystemSound(SystemSoundID(soundID))
+    }
+
+    private func speakPrepPrompt() {
+        let message = "Prepare for the session. Move into first pose"
+        let utterance = AVSpeechUtterance(string: message)
+        utterance.voice = getVoiceByID(selectedVoiceID)
+        utterance.rate = 0.5
+        speechSynthesizer.speak(utterance)
+    }
+
+    private func speakPhasePrompt(_ phase: String) {
+        let utterance = AVSpeechUtterance(string: phase)
+        utterance.voice = getVoiceByID(selectedVoiceID)
+        utterance.rate = 0.5
+        speechSynthesizer.speak(utterance)
+    }
+
+    private func getVoiceByID(_ voiceID: String) -> AVSpeechSynthesisVoice? {
+        if voiceID.isEmpty {
+            return AVSpeechSynthesisVoice(language: "en-US")
+        }
+        return AVSpeechSynthesisVoice(identifier: voiceID)
     }
 
     // Bundled chime support removed; we play system sounds selected by the user.
