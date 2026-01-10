@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AudioToolbox
+import UIKit
 
 struct ContentView: View {
     @State private var transitionSeconds: Int = 5
@@ -23,10 +24,11 @@ struct ContentView: View {
 
     // active picker sheet (nil = none)
     enum PickerSelection: String, Identifiable {
-        case transition, hold, progressSound, poseEndChime
+        case transition, hold
         var id: String { rawValue }
     }
     @State private var activePicker: PickerSelection? = nil
+    @State private var showingSettings: Bool = false
 
     private let systemChimeOptions: [(id: Int, name: String)] = [
         // None option
@@ -87,8 +89,9 @@ struct ContentView: View {
     private let historyKey = "Yogik.timerHistory"
 
     var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
+        TabView {
+            NavigationView {
+                VStack(spacing: 20) {
                 if showingDial {
                     // Dial-only UI
                     ZStack {
@@ -169,31 +172,7 @@ struct ContentView: View {
                             }
                             .disabled(isRunning)
 
-                            Button(action: {
-                                guard !isRunning else { return }
-                                activePicker = .progressSound
-                            }) {
-                                HStack {
-                                    Text("Progress: \(systemChimeOptions.first(where: { $0.id == progressSoundID })?.name ?? "Unknown")")
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            .disabled(isRunning)
-
-                            Button(action: {
-                                guard !isRunning else { return }
-                                activePicker = .poseEndChime
-                            }) {
-                                HStack {
-                                    Text("End: \(systemChimeOptions.first(where: { $0.id == poseEndChimeID })?.name ?? "Unknown")")
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            .disabled(isRunning)
+                            // Chime settings moved to dedicated Settings screen (gear)
 
                             Button(action: { start(); showingDial = true }) {
                                 HStack(spacing: 8) {
@@ -238,7 +217,7 @@ struct ContentView: View {
                                             }
                                         }
                                     }
-                                    .buttonStyle(.plain)
+                                    .buttonStyle(.automatic)
                                 }
                                 .onDelete(perform: deleteHistory)
                             }
@@ -248,6 +227,16 @@ struct ContentView: View {
                 }
             }
             .navigationTitle("Yogik")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { showingSettings = true }) {
+                        Image(systemName: "gearshape")
+                    }
+                }
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
+            }
             .sheet(item: $activePicker) { selection in
                 NavigationView {
                     VStack {
@@ -260,7 +249,7 @@ struct ContentView: View {
                             .pickerStyle(WheelPickerStyle())
                             .labelsHidden()
                             .frame(maxHeight: 260)
-                        } else if selection == .hold {
+                        } else {
                             Picker("Hold", selection: $holdSeconds) {
                                 ForEach(1...60, id: \.self) { i in
                                     Text("\(i) s").tag(i)
@@ -269,26 +258,6 @@ struct ContentView: View {
                             .pickerStyle(WheelPickerStyle())
                             .labelsHidden()
                             .frame(maxHeight: 260)
-                        } else if selection == .progressSound {
-                            Picker("Progress Sound", selection: $progressSoundID) {
-                                ForEach(systemChimeOptions, id: \.id) { option in
-                                    Text(option.name).tag(option.id)
-                                }
-                            }
-                            .pickerStyle(WheelPickerStyle())
-                            .labelsHidden()
-                            .frame(maxHeight: 260)
-                            .onChange(of: progressSoundID) { _ in playChime(soundID: progressSoundID) }
-                        } else if selection == .poseEndChime {
-                            Picker("Pose End Chime", selection: $poseEndChimeID) {
-                                ForEach(systemChimeOptions, id: \.id) { option in
-                                    Text(option.name).tag(option.id)
-                                }
-                            }
-                            .pickerStyle(WheelPickerStyle())
-                            .labelsHidden()
-                            .frame(maxHeight: 260)
-                            .onChange(of: poseEndChimeID) { _ in playChime(soundID: poseEndChimeID) }
                         }
                         Spacer()
                     }
@@ -300,20 +269,25 @@ struct ContentView: View {
                             Button("Done") { activePicker = nil }
                         }
                     }
-                    .navigationTitle(
-                        selection == .transition ? "Select Transition" :
-                        selection == .hold ? "Select Hold" :
-                        selection == .progressSound ? "Select Progress Sound" :
-                        "Select Pose End Chime"
-                    )
+                    .navigationTitle(selection == .transition ? "Select Transition" : "Select Hold")
                 }
             }
-        }
-        .onDisappear {
-            stop()
-        }
-        .onAppear {
-            loadHistory()
+            }
+            .onDisappear {
+                stop()
+            }
+            .onAppear {
+                loadHistory()
+            }
+            .tabItem {
+                Label("Yoga", systemImage: "figure.cooldown")
+            }
+
+            // Second tab: Pranayama
+            PranayamaView()
+                .tabItem {
+                    Label("Pranayama", systemImage: "wind")
+                }
         }
     }
 
@@ -379,6 +353,9 @@ struct ContentView: View {
             tick()
         }
         RunLoop.main.add(timer!, forMode: .common)
+        
+        // Keep screen awake while timer is running
+        UIApplication.shared.isIdleTimerDisabled = true
     }
 
     private func stop() {
@@ -393,6 +370,9 @@ struct ContentView: View {
         isPaused = false
         // Return to the setup UI
         showingDial = false
+        
+        // Allow screen to sleep again
+        UIApplication.shared.isIdleTimerDisabled = false
     }
 
     private func togglePause() {
