@@ -31,6 +31,7 @@ struct PranayamaView: View {
     @State private var timer: Timer? = nil
     @State private var isPaused: Bool = false
     @State private var showingDial: Bool = false
+    @AppStorage("selectedVoiceID") private var selectedVoiceID: String = ""
     private let speechSynthesizer = AVSpeechSynthesizer()
     
     enum BreathPhase {
@@ -513,6 +514,11 @@ struct PranayamaView: View {
             utterance = AVSpeechUtterance(string: "Hold")
         case .idle:
             return
+        }
+        
+        // Set the voice if available
+        if let voice = AVSpeechSynthesisVoice(identifier: selectedVoiceID) {
+            utterance.voice = voice
         }
         
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate
