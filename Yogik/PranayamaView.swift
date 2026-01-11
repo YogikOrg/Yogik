@@ -3,14 +3,14 @@ import AudioToolbox
 
 struct PranayamaView: View {
     @State private var breathInRatio: Int = 4
-    @State private var holdInRatio: Int = 6
-    @State private var breathOutRatio: Int = 8
-    @State private var holdOutRatio: Int = 0
+    @State private var holdInRatio: Int = 4
+    @State private var breathOutRatio: Int = 6
+    @State private var holdOutRatio: Int = 2
     
     enum Pace: String, CaseIterable, Identifiable {
-        case fast = "Fast"
-        case medium = "Medium"
-        case slow = "Slow"
+        case fast = "Fast (1s)"
+        case medium = "Medium (1.5s)"
+        case slow = "Slow (2s)"
         
         var id: String { rawValue }
         var multiplier: Double {
@@ -22,7 +22,7 @@ struct PranayamaView: View {
         }
     }
     
-    @State private var selectedPace: Pace = .medium
+    @State private var selectedPace: Pace = .fast
     @State private var remaining: Int = 0
     @State private var roundCount: Int = 0
     @State private var isPaused: Bool = false
@@ -184,8 +184,8 @@ struct PranayamaView: View {
                             .buttonStyle(.plain)
                         }
                         
-                        Section(header: Text("Pace")) {
-                            Picker("Pace", selection: $selectedPace) {
+                        Section(header: Text("Pace (Count duration)")) {
+                            Picker("Pace (Count duration)", selection: $selectedPace) {
                                 ForEach(Pace.allCases) { pace in
                                     Text(pace.rawValue).tag(pace)
                                 }

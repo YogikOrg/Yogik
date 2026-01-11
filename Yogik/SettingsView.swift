@@ -108,11 +108,15 @@ struct SettingsView: View {
             }.sorted { ($0.name) < ($1.name) }
             
             if selectedVoiceID.isEmpty && !availableVoices.isEmpty {
-                // Try to find Soumya first, then Karen, then default
-                if let soumya = availableVoices.first(where: { $0.name.contains("Soumya") }) {
+                // Try to find Moira first, then Soumya, then Karen, then Samantha, then default
+                if let moira = availableVoices.first(where: { $0.name.contains("Moira") }) {
+                    selectedVoiceID = moira.identifier
+                } else if let soumya = availableVoices.first(where: { $0.name.contains("Soumya") }) {
                     selectedVoiceID = soumya.identifier
                 } else if let karen = availableVoices.first(where: { $0.name.contains("Karen") }) {
                     selectedVoiceID = karen.identifier
+                } else if let samantha = availableVoices.first(where: { $0.name.contains("Samantha") }) {
+                    selectedVoiceID = samantha.identifier
                 } else {
                     selectedVoiceID = availableVoices[0].identifier
                 }

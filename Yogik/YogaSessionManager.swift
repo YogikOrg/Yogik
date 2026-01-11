@@ -1,5 +1,5 @@
 //
-//  SessionManager.swift
+//  YogaSessionManager.swift
 //  Yogik
 //
 //  Created by Manbhawan on 11/01/2026.
@@ -8,7 +8,7 @@
 import Foundation
 import Combine
 
-class SessionManager: ObservableObject {
+class YogaSessionManager: ObservableObject {
     enum SessionState {
         case idle
         case active

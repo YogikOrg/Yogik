@@ -24,7 +24,7 @@ struct YogaView: View {
     @AppStorage("selectedVoiceID") private var selectedVoiceID: String = ""
     @AppStorage("prepTimeSeconds") private var prepTimeSeconds: Int = 5
 
-    @StateObject private var session = SessionManager()
+    @StateObject private var session = YogaSessionManager()
 
     enum PickerSelection: String, Identifiable {
         case transition, hold
