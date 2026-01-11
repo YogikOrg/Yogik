@@ -371,7 +371,7 @@ struct PranayamaView: View {
         inPrepPhase = true
         
         // Play prep prompt
-        AudioManager.shared.speak(message: "Prepare for the session. Begin breathing", voiceID: selectedVoiceID, rate: 0.5)
+        AudioManager.shared.speak(message: "Prepare for breathing exercise. Take position.", voiceID: selectedVoiceID, rate: 0.5)
         
         // Delay timer start to allow prep time before first inhale prompt
         let workItem = DispatchWorkItem {

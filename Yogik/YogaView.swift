@@ -306,26 +306,30 @@ struct YogaView: View {
         inSession = true
         inPrepPhase = true
 
-        if transitionSeconds > 0 {
-            phase = .transition
-            remaining = transitionSeconds
-        } else if holdSeconds > 0 {
-            phase = .hold
-            remaining = holdSeconds
-        } else {
-            phase = .idle
-            remaining = 0
+        // Don't set phase/remaining here - they'll be set after session starts
+        if (transitionSeconds + holdSeconds) == 0 {
             inSession = false
             inPrepPhase = false
             return
         }
 
         // Call prep prompt before starting
-        AudioManager.shared.speak(message: "Prepare for the session. Move into first pose", voiceID: selectedVoiceID, rate: 0.5)
+        AudioManager.shared.speak(message: "Prepare for the session", voiceID: selectedVoiceID, rate: 0.5)
 
         // Delay timer start to allow prep time
         let workItem = DispatchWorkItem {
             self.inPrepPhase = false
+            // Set phase and remaining right before starting
+            if self.transitionSeconds > 0 {
+                self.phase = .transition
+                self.remaining = self.transitionSeconds
+            } else if self.holdSeconds > 0 {
+                self.phase = .hold
+                self.remaining = self.holdSeconds
+            }
+            // Speak "Move into first pose" right before transition timer starts
+            AudioManager.shared.speak(message: "Move into first pose", voiceID: self.selectedVoiceID, rate: 0.5)
+            // Start session immediately so transition timer runs
             self.session.start {
                 self.tick()
             }
@@ -363,10 +367,8 @@ struct YogaView: View {
     }
 
     private func tick() {
-        remaining = session.remaining
-
         if remaining > 0 {
-            if phase == .hold && remaining > 0 && progressSoundID != 0 {
+            if phase == .hold && progressSoundID != 0 {
                 AudioManager.shared.playSound(soundID: progressSoundID)
             }
             remaining -= 1
@@ -374,6 +376,7 @@ struct YogaView: View {
             return
         }
 
+        // remaining == 0, process phase transition
         switch phase {
         case .transition:
             if holdSeconds > 0 {
@@ -381,14 +384,12 @@ struct YogaView: View {
                 remaining = holdSeconds
                 AudioManager.shared.speak(message: "Hold", voiceID: selectedVoiceID, rate: 0.5)
             } else {
+                // No hold phase, so complete lap and move to next transition
                 lapCount += 1
                 if transitionSeconds > 0 {
                     phase = .transition
                     remaining = transitionSeconds
                     AudioManager.shared.speak(message: "Move to next pose", voiceID: selectedVoiceID, rate: 0.5)
-                } else if holdSeconds > 0 {
-                    phase = .hold
-                    remaining = holdSeconds
                 } else {
                     stopSession()
                 }
@@ -400,9 +401,6 @@ struct YogaView: View {
                 phase = .transition
                 remaining = transitionSeconds
                 AudioManager.shared.speak(message: "Move to next pose", voiceID: selectedVoiceID, rate: 0.5)
-            } else if holdSeconds > 0 {
-                phase = .hold
-                remaining = holdSeconds
             } else {
                 stopSession()
             }
