@@ -104,82 +104,64 @@ struct YogaView: View {
                     Spacer()
                 } else {
                     // Setup UI
-                    VStack(spacing: 16) {
-                        HStack(spacing: 12) {
-                            Text("Transition:").font(.subheadline).fontWeight(.semibold)
-                            Spacer()
-                            Button(action: {
-                                guard !session.isRunning else { return }
-                                transitionSeconds = min(max(transitionSeconds, 1), 60)
-                                activePicker = .transition
-                            }) {
-                                HStack(spacing: 6) {
-                                    Text("\(transitionSeconds) s")
-                                        .font(.system(size: 16, weight: .semibold, design: .monospaced))
-                                    Image(systemName: "chevron.right")
-                                        .font(.caption)
+                    Form {
+                        Section(header: Text("Timer Settings")) {
+                            HStack(spacing: 12) {
+                                Text("Transition:").font(.subheadline).fontWeight(.semibold)
+                                Spacer()
+                                Button(action: {
+                                    guard !session.isRunning else { return }
+                                    transitionSeconds = min(max(transitionSeconds, 1), 60)
+                                    activePicker = .transition
+                                }) {
+                                    HStack(spacing: 6) {
+                                        Text("\(transitionSeconds) s")
+                                            .font(.system(size: 16, weight: .semibold, design: .monospaced))
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption)
+                                    }
+                                    .foregroundColor(.blue)
                                 }
-                                .foregroundColor(.blue)
+                                .disabled(session.isRunning)
                             }
-                            .disabled(session.isRunning)
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(8)
-                        
-                        HStack(spacing: 12) {
-                            Text("Hold:").font(.subheadline).fontWeight(.semibold)
-                            Spacer()
-                            Button(action: {
-                                guard !session.isRunning else { return }
-                                holdSeconds = min(max(holdSeconds, 1), 60)
-                                activePicker = .hold
-                            }) {
-                                HStack(spacing: 6) {
-                                    Text("\(holdSeconds) s")
-                                        .font(.system(size: 16, weight: .semibold, design: .monospaced))
-                                    Image(systemName: "chevron.right")
-                                        .font(.caption)
+                            
+                            HStack(spacing: 12) {
+                                Text("Hold:").font(.subheadline).fontWeight(.semibold)
+                                Spacer()
+                                Button(action: {
+                                    guard !session.isRunning else { return }
+                                    holdSeconds = min(max(holdSeconds, 1), 60)
+                                    activePicker = .hold
+                                }) {
+                                    HStack(spacing: 6) {
+                                        Text("\(holdSeconds) s")
+                                            .font(.system(size: 16, weight: .semibold, design: .monospaced))
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption)
+                                    }
+                                    .foregroundColor(.blue)
                                 }
-                                .foregroundColor(.blue)
+                                .disabled(session.isRunning)
                             }
-                            .disabled(session.isRunning)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(8)
 
-                        Button(action: startSession) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "play.fill")
-                                Text("Start")
+                        Section {
+                            Button(action: startSession) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "play.fill")
+                                    Text("Start")
+                                }
+                                .frame(maxWidth: .infinity)
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding(12)
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(8)
-                            .fontWeight(.semibold)
+                            .buttonStyle(.borderedProminent)
+                            .disabled(session.isRunning || (transitionSeconds + holdSeconds) == 0)
                         }
-                        .disabled(session.isRunning || (transitionSeconds + holdSeconds) == 0)
                         
-                        Divider()
-                        
-                        Text("Saved timers")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .padding(.top, 8)
-                            .padding(.horizontal, 16)
-                        
-                        if history.isEmpty {
-                            Text("No saved timers yet")
-                                .foregroundColor(.secondary)
-                                .font(.caption)
-                                .padding(.horizontal, 16)
-                        } else {
-                            List {
+                        Section(header: Text("Saved timers")) {
+                            if history.isEmpty {
+                                Text("No saved timers yet")
+                                    .foregroundColor(.secondary)
+                            } else {
                                 ForEach(history) { item in
                                     Button(action: {
                                         transitionSeconds = item.transitionSeconds
@@ -208,18 +190,13 @@ struct YogaView: View {
                                             }
                                         }
                                     }
-                                    .listRowBackground(Color(.systemGray6))
-                                    .listRowSeparator(.hidden)
+                                    .buttonStyle(.automatic)
                                 }
                                 .onDelete(perform: deleteHistory)
                             }
-                            .listStyle(.plain)
-                            .frame(maxHeight: .infinity)
                         }
-                        
-                        Spacer()
                     }
-                    .padding(16)
+                    Spacer()
                 }
             }
             .navigationTitle("Yoga")
