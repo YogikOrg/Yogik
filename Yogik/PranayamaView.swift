@@ -1,7 +1,5 @@
 import SwiftUI
 import AudioToolbox
-import UIKit
-import AVFoundation
 
 struct PranayamaView: View {
     @State private var breathInRatio: Int = 4
@@ -25,18 +23,24 @@ struct PranayamaView: View {
     }
     
     @State private var selectedPace: Pace = .medium
-    @State private var isRunning: Bool = false
     @State private var remaining: Int = 0
     @State private var roundCount: Int = 0
-    @State private var timer: Timer? = nil
     @State private var isPaused: Bool = false
     @State private var showingDial: Bool = false
-    @State private var countElapsed: Double = 0  // Elapsed time within current count
+    @State private var countElapsed: Double = 0
+    @State private var inSession: Bool = false
+    @State private var inPrepPhase: Bool = false
+    @State private var prepWorkItem: DispatchWorkItem?
     @AppStorage("selectedVoiceID") private var selectedVoiceID: String = ""
     @AppStorage("prepTimeSeconds") private var prepTimeSeconds: Int = 5
     @AppStorage("pranayamaProgressSoundEnabled") private var pranayamaProgressSoundEnabled: Bool = true
     @AppStorage("progressSoundID") private var progressSoundID: Int = 1057
-    private let speechSynthesizer = AVSpeechSynthesizer()
+    
+    @StateObject private var session = PranayamaSessionManager()
+    
+    var isRunning: Bool {
+        session.isRunning
+    }
     
     enum BreathPhase {
         case idle, breathIn, holdIn, breathOut, holdOut
@@ -108,13 +112,13 @@ struct PranayamaView: View {
                             }
                         }
                         .buttonStyle(.bordered)
-                        .disabled(!isRunning)
-                        
+                        .disabled(!inSession || inPrepPhase)
+
                         Button(action: stop) {
                             Label("Stop", systemImage: "stop.fill")
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(!isRunning)
+                        .disabled(!inSession)
                     }
                     .padding()
                     Spacer()
@@ -355,21 +359,23 @@ struct PranayamaView: View {
     }
     
     private func start() {
-        guard !isRunning else { return }
+        guard session.state == .idle else { return }
         guard totalCycleTime > 0 else { return }
         
         addOrUpdateHistoryOnStart()
         
         roundCount = 0
-        isRunning = true
         isPaused = false
         countElapsed = 0
+        inSession = true
+        inPrepPhase = true
         
         // Play prep prompt
-        speakPrepPrompt()
+        AudioManager.shared.speak(message: "Prepare for the session. Begin breathing", voiceID: selectedVoiceID, rate: 0.5)
         
         // Delay timer start to allow prep time before first inhale prompt
-        DispatchQueue.main.asyncAfter(deadline: .now() + Double(prepTimeSeconds)) {
+        let workItem = DispatchWorkItem {
+            self.inPrepPhase = false
             // Start with breathIn if it has a ratio > 0
             if self.breathInRatio > 0 {
                 self.phase = .breathIn
@@ -380,44 +386,44 @@ struct PranayamaView: View {
                 self.advanceToNextPhase()
             }
             
-            // Timer interval is 0.1 seconds for smooth progress tracking
-            let timePerCount = selectedPace.multiplier
-            self.timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+            // Start session with 0.1s tick interval
+            let timePerCount = self.selectedPace.multiplier
+            self.session.start { elapsed in
                 self.tick(timePerCount: timePerCount)
             }
-            RunLoop.main.add(self.timer!, forMode: .common)
         }
+        prepWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + Double(prepTimeSeconds), execute: workItem)
         
         UIApplication.shared.isIdleTimerDisabled = true
+        showingDial = true
     }
     
     private func stop() {
-        timer?.invalidate()
-        timer = nil
-        isRunning = false
+        AudioManager.shared.stopSpeaking()
+        prepWorkItem?.cancel()
+        prepWorkItem = nil
+        session.stop()
         phase = .idle
-        updateHistoryOnStop()
         remaining = 0
         roundCount = 0
         isPaused = false
         showingDial = false
-        
+        countElapsed = 0
+        inSession = false
+        inPrepPhase = false
+        updateHistoryOnStop()
         UIApplication.shared.isIdleTimerDisabled = false
     }
     
     private func togglePause() {
-        guard isRunning else { return }
+        guard session.state == .active else { return }
         if isPaused {
             isPaused = false
-            let timePerCount = selectedPace.multiplier
-            timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-                self.tick(timePerCount: timePerCount)
-            }
-            RunLoop.main.add(timer!, forMode: .common)
+            session.resume()
         } else {
-            timer?.invalidate()
-            timer = nil
             isPaused = true
+            session.pause()
         }
     }
     
@@ -523,43 +529,26 @@ struct PranayamaView: View {
     }
     
     private func speakPrepPrompt() {
-        let utterance = AVSpeechUtterance(string: "Prepare for the breathing exercise. Take position")
-        
-        // Set the voice if available
-        if let voice = AVSpeechSynthesisVoice(identifier: selectedVoiceID) {
-            utterance.voice = voice
-        }
-        
-        utterance.rate = AVSpeechUtteranceDefaultSpeechRate
-        speechSynthesizer.speak(utterance)
+        AudioManager.shared.speak(message: "Prepare for the breathing exercise. Take position", voiceID: selectedVoiceID)
     }
     
     private func speakPhasePrompt(_ phase: BreathPhase) {
-        // Stop any ongoing speech
-        speechSynthesizer.stopSpeaking(at: .immediate)
-        
-        let utterance: AVSpeechUtterance
+        let message: String
         
         switch phase {
         case .breathIn:
-            utterance = AVSpeechUtterance(string: "Inhale")
+            message = "Inhale"
         case .holdIn:
-            utterance = AVSpeechUtterance(string: "Hold")
+            message = "Hold"
         case .breathOut:
-            utterance = AVSpeechUtterance(string: "Exhale")
+            message = "Exhale"
         case .holdOut:
-            utterance = AVSpeechUtterance(string: "Hold")
+            message = "Hold"
         case .idle:
             return
         }
         
-        // Set the voice if available
-        if let voice = AVSpeechSynthesisVoice(identifier: selectedVoiceID) {
-            utterance.voice = voice
-        }
-        
-        utterance.rate = AVSpeechUtteranceDefaultSpeechRate
-        speechSynthesizer.speak(utterance)
+        AudioManager.shared.speak(message: message, voiceID: selectedVoiceID)
     }
     
     // MARK: - History Functions
