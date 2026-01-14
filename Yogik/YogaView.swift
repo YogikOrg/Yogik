@@ -198,7 +198,7 @@ struct YogaView: View {
                     Spacer()
                 }
             }
-            .navigationTitle("Yoga")
+            .navigationTitle("Yoga Sequences")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Image("BrandIcon")
