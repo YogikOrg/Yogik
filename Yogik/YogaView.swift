@@ -20,7 +20,7 @@ struct YogaView: View {
     @State private var inSession: Bool = false
     @State private var inPrepPhase: Bool = false
     @State private var prepWorkItem: DispatchWorkItem?
-    @AppStorage("progressSoundID") private var progressSoundID: Int = 1057
+
     @AppStorage("selectedVoiceID") private var selectedVoiceID: String = ""
     @AppStorage("prepTimeSeconds") private var prepTimeSeconds: Int = 5
 
@@ -41,7 +41,6 @@ struct YogaView: View {
         let id: UUID
         var transitionSeconds: Int
         var holdSeconds: Int
-        var progressSoundID: Int
         var date: Date
         var laps: Int
 
@@ -166,7 +165,7 @@ struct YogaView: View {
                                     Button(action: {
                                         transitionSeconds = item.transitionSeconds
                                         holdSeconds = item.holdSeconds
-                                        progressSoundID = item.progressSoundID
+
                                         startSession()
                                         showingDial = true
                                     }) {
@@ -368,10 +367,11 @@ struct YogaView: View {
 
     private func tick() {
         if remaining > 0 {
-            if phase == .hold && progressSoundID != 0 {
-                AudioManager.shared.playSound(soundID: progressSoundID)
-            }
             remaining -= 1
+            if phase == .hold && remaining > 0 {
+                let count = String(remaining)
+                AudioManager.shared.speak(message: count, voiceID: selectedVoiceID, rate: 0.5)
+            }
             session.remaining = remaining
             return
         }
@@ -430,13 +430,13 @@ struct YogaView: View {
 
     private func addOrUpdateHistoryOnStart() {
         let now = Date()
-        if let idx = history.firstIndex(where: { $0.transitionSeconds == transitionSeconds && $0.holdSeconds == holdSeconds && $0.progressSoundID == progressSoundID }) {
+        if let idx = history.firstIndex(where: { $0.transitionSeconds == transitionSeconds && $0.holdSeconds == holdSeconds }) {
             var e = history.remove(at: idx)
             e.date = now
             e.laps = 0
             history.insert(e, at: 0)
         } else {
-            let entry = TimerSetup(id: UUID(), transitionSeconds: transitionSeconds, holdSeconds: holdSeconds, progressSoundID: progressSoundID, date: now, laps: 0)
+            let entry = TimerSetup(id: UUID(), transitionSeconds: transitionSeconds, holdSeconds: holdSeconds, date: now, laps: 0)
             history.insert(entry, at: 0)
             if history.count > 5 {
                 history.removeLast()
@@ -446,7 +446,7 @@ struct YogaView: View {
     }
 
     private func updateHistoryOnStop() {
-        if let idx = history.firstIndex(where: { $0.transitionSeconds == transitionSeconds && $0.holdSeconds == holdSeconds && $0.progressSoundID == progressSoundID }) {
+        if let idx = history.firstIndex(where: { $0.transitionSeconds == transitionSeconds && $0.holdSeconds == holdSeconds }) {
             history[idx].laps = lapCount
             history[idx].date = Date()
             let e = history.remove(at: idx)

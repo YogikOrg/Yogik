@@ -1,5 +1,4 @@
 import SwiftUI
-import AudioToolbox
 
 struct PranayamaView: View {
     @State private var breathInRatio: Int = 4
@@ -34,7 +33,7 @@ struct PranayamaView: View {
     @AppStorage("selectedVoiceID") private var selectedVoiceID: String = ""
     @AppStorage("prepTimeSeconds") private var prepTimeSeconds: Int = 5
     @AppStorage("pranayamaProgressSoundEnabled") private var pranayamaProgressSoundEnabled: Bool = true
-    @AppStorage("progressSoundID") private var progressSoundID: Int = 1057
+
     
     @StateObject private var session = PranayamaSessionManager()
     
@@ -432,13 +431,14 @@ struct PranayamaView: View {
         
         // Check if a full count has elapsed
         if countElapsed >= timePerCount {
-            // Play chord chime for this count if enabled
-            if pranayamaProgressSoundEnabled {
-                playChime()
-            }
-            
             countElapsed = 0
             remaining -= 1
+            
+            // Announce the count
+            if remaining > 0 && pranayamaProgressSoundEnabled {
+                let count = String(remaining)
+                AudioManager.shared.speak(message: count, voiceID: selectedVoiceID, rate: 0.5)
+            }
             
             if remaining <= 0 {
                 // Phase complete, advance to next
@@ -512,21 +512,7 @@ struct PranayamaView: View {
         }
     }
     
-    private func playChime() {
-        // Play progress sound every second during breathing
-        guard progressSoundID != 0 else { return }
-        AudioServicesPlaySystemSound(SystemSoundID(progressSoundID))
-    }
-    
-    private func playPhaseTransitionSound() {
-        // Play Bamboo sound (ID: 1111) when transitioning between phases
-        AudioServicesPlaySystemSound(SystemSoundID(1111))
-    }
-    
-    private func playLapCompletionSound() {
-        // Play Bell sound (ID: 1115) at lap completion
-        AudioServicesPlaySystemSound(SystemSoundID(1115))
-    }
+
     
     private func speakPrepPrompt() {
         AudioManager.shared.speak(message: "Prepare for the breathing exercise. Take position", voiceID: selectedVoiceID)
