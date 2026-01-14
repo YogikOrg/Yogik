@@ -12,7 +12,7 @@ import AVFoundation
 struct YogaView: View {
     @State private var transitionSeconds: Int = 5
     @State private var holdSeconds: Int = 10
-    @State private var remaining: Int = 0
+    @State private var elapsed: Int = 0
     @State private var lapCount: Int = 0
     @State private var isPaused: Bool = false
     @State private var phase: Phase = .idle
@@ -73,7 +73,7 @@ struct YogaView: View {
                             Text(phaseText)
                                 .font(.headline)
                                 .foregroundColor(phaseColor)
-                            Text("\(remaining) s")
+                            Text("\(elapsed) s")
                                 .font(.system(size: 48, weight: .bold, design: .monospaced))
                             Text("Laps: \(lapCount)")
                                 .font(.subheadline)
@@ -274,7 +274,7 @@ struct YogaView: View {
     private var progress: Double {
         let total = currentPhaseTotal
         guard total > 0 else { return 0 }
-        return 1.0 - Double(remaining) / Double(total)
+        return Double(elapsed) / Double(total)
     }
 
     private var phaseColor: Color {
@@ -301,6 +301,7 @@ struct YogaView: View {
         addOrUpdateHistoryOnStart()
 
         lapCount = 0
+        elapsed = 1
         isPaused = false
         inSession = true
         inPrepPhase = true
@@ -318,13 +319,11 @@ struct YogaView: View {
         // Delay timer start to allow prep time
         let workItem = DispatchWorkItem {
             self.inPrepPhase = false
-            // Set phase and remaining right before starting
+            // Set phase right before starting
             if self.transitionSeconds > 0 {
                 self.phase = .transition
-                self.remaining = self.transitionSeconds
             } else if self.holdSeconds > 0 {
                 self.phase = .hold
-                self.remaining = self.holdSeconds
             }
             // Speak "Move into first pose" right before transition timer starts
             AudioManager.shared.speak(message: "Move into first pose", voiceID: self.selectedVoiceID, rate: 0.5)
@@ -346,7 +345,7 @@ struct YogaView: View {
         prepWorkItem = nil
         session.stop()
         phase = .idle
-        remaining = 0
+        elapsed = 1
         lapCount = 0
         isPaused = false
         showingDial = false
@@ -366,50 +365,46 @@ struct YogaView: View {
     }
 
     private func tick() {
-        if remaining > 0 {
-            remaining -= 1
-            if phase == .hold && remaining > 0 {
-                let count = String(remaining)
-                AudioManager.shared.speak(message: count, voiceID: selectedVoiceID, rate: 0.5)
-            }
-            session.remaining = remaining
-            return
-        }
-
-        // remaining == 0, process phase transition
-        switch phase {
-        case .transition:
-            if holdSeconds > 0 {
-                phase = .hold
-                remaining = holdSeconds
-                AudioManager.shared.speak(message: "Hold", voiceID: selectedVoiceID, rate: 0.5)
-            } else {
-                // No hold phase, so complete lap and move to next transition
+        elapsed += 1
+        
+        // Check if current phase is complete
+        let currentMax = (phase == .hold) ? holdSeconds : transitionSeconds
+        
+        if elapsed > currentMax {
+            // Phase complete, move to next
+            if phase == .transition {
+                if holdSeconds > 0 {
+                    phase = .hold
+                    elapsed = 1
+                    AudioManager.shared.speak(message: "Hold", voiceID: selectedVoiceID, rate: 0.5)
+                } else {
+                    lapCount += 1
+                    if transitionSeconds > 0 {
+                        phase = .transition
+                        elapsed = 1
+                        AudioManager.shared.speak(message: "Move to next pose", voiceID: selectedVoiceID, rate: 0.5)
+                    } else {
+                        stopSession()
+                    }
+                }
+            } else if phase == .hold {
                 lapCount += 1
                 if transitionSeconds > 0 {
                     phase = .transition
-                    remaining = transitionSeconds
+                    elapsed = 1
                     AudioManager.shared.speak(message: "Move to next pose", voiceID: selectedVoiceID, rate: 0.5)
                 } else {
                     stopSession()
                 }
             }
-
-        case .hold:
-            lapCount += 1
-            if transitionSeconds > 0 {
-                phase = .transition
-                remaining = transitionSeconds
-                AudioManager.shared.speak(message: "Move to next pose", voiceID: selectedVoiceID, rate: 0.5)
-            } else {
-                stopSession()
-            }
-
-        case .idle:
-            stopSession()
+            return
         }
         
-        session.remaining = remaining
+        // Speak count during hold phase only (skip 1 since phase prompt is spoken)
+        if elapsed > 1 && phase == .hold {
+            let count = String(elapsed)
+            AudioManager.shared.speak(message: count, voiceID: selectedVoiceID, rate: 0.5)
+        }
     }
 
     // MARK: - History

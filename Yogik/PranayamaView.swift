@@ -23,6 +23,7 @@ struct PranayamaView: View {
     
     @State private var selectedPace: Pace = .fast
     @State private var remaining: Int = 0
+    @State private var elapsed: Int = 0
     @State private var roundCount: Int = 0
     @State private var isPaused: Bool = false
     @State private var showingDial: Bool = false
@@ -93,7 +94,7 @@ struct PranayamaView: View {
                             Text(phaseText)
                                 .font(.headline)
                                 .foregroundColor(phaseColor)
-                            Text("\(remaining)")
+                            Text("\(elapsed)")
                                 .font(.system(size: 48, weight: .bold, design: .monospaced))
                             Text("Rounds: \(roundCount)")
                                 .font(.subheadline)
@@ -366,6 +367,7 @@ struct PranayamaView: View {
         roundCount = 0
         isPaused = false
         countElapsed = 0
+        elapsed = 1
         inSession = true
         inPrepPhase = true
         
@@ -405,6 +407,7 @@ struct PranayamaView: View {
         session.stop()
         phase = .idle
         remaining = 0
+        elapsed = 1
         roundCount = 0
         isPaused = false
         showingDial = false
@@ -433,10 +436,11 @@ struct PranayamaView: View {
         if countElapsed >= timePerCount {
             countElapsed = 0
             remaining -= 1
+            elapsed += 1
             
-            // Announce the count
-            if remaining > 0 && pranayamaProgressSoundEnabled {
-                let count = String(remaining)
+            // Announce the count starting from 2 (phase prompt was spoken at 1)
+            if pranayamaProgressSoundEnabled && elapsed > 1 && elapsed <= currentPhaseRatio {
+                let count = String(elapsed)
                 AudioManager.shared.speak(message: count, voiceID: selectedVoiceID, rate: 0.5)
             }
             
@@ -449,6 +453,7 @@ struct PranayamaView: View {
     
     private func advanceToNextPhase() {
         countElapsed = 0  // Reset elapsed time for new phase
+        elapsed = 1  // Reset count to 1 for new phase
         
         switch phase {
         case .idle, .breathIn:
@@ -501,6 +506,7 @@ struct PranayamaView: View {
     
     private func completeRound() {
         countElapsed = 0  // Reset elapsed time for new round
+        elapsed = 1  // Reset count to 1 for new round
         roundCount += 1
         // Start next round
         if breathInRatio > 0 {
