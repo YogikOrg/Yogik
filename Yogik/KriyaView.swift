@@ -29,13 +29,15 @@ struct KriyaView: View {
         let rounds: [Round]
         let kriyaBreathInLabel: String
         let kriyaBreathOutLabel: String
+        let repeatCount: Int
         
-        init(id: UUID = UUID(), name: String, rounds: [Round], kriyaBreathInLabel: String = "Inhale", kriyaBreathOutLabel: String = "Exhale") {
+        init(id: UUID = UUID(), name: String, rounds: [Round], kriyaBreathInLabel: String = "Inhale", kriyaBreathOutLabel: String = "Exhale", repeatCount: Int = 1) {
             self.id = id
             self.name = name
             self.rounds = rounds
             self.kriyaBreathInLabel = kriyaBreathInLabel
             self.kriyaBreathOutLabel = kriyaBreathOutLabel
+            self.repeatCount = repeatCount
         }
     }
     
@@ -45,6 +47,8 @@ struct KriyaView: View {
     @State private var kriyaBreathInLabel: String = "In"
     @State private var kriyaBreathOutLabel: String = "Out"
     @State private var kriyaName: String = ""
+    @State private var repeatCount: Int = 1
+    @State private var remainingRepeats: Int = 0
     @State private var elapsed: Int = 0
     @State private var elapsedFractional: Double = 0.0
     @State private var isPaused: Bool = false
@@ -139,6 +143,17 @@ struct KriyaView: View {
                                             .multilineTextAlignment(.trailing)
                                     }
                                 }
+                        
+                        Section {
+                            HStack {
+                                Text("Repetition")
+                                Spacer()
+                                TextField("", value: $repeatCount, format: .number)
+                                    .keyboardType(.numberPad)
+                                    .multilineTextAlignment(.trailing)
+                                    .frame(maxWidth: 60)
+                            }
+                        }
                         
                         Section {
                             VStack(alignment: .leading, spacing: 12) {
@@ -348,6 +363,7 @@ struct KriyaView: View {
         
         currentRoundIndex = 0
         currentRoundCount = 1
+        remainingRepeats = repeatCount - 1
         elapsed = 0
         elapsedFractional = 0.0
         isPaused = false
@@ -438,8 +454,14 @@ struct KriyaView: View {
             currentRoundIndex += 1
             currentRoundCount = 1
             playCurrentRound()
+        } else if remainingRepeats > 0 {
+            // All rounds complete, repeat the entire sequence
+            remainingRepeats -= 1
+            currentRoundIndex = 0
+            currentRoundCount = 1
+            playCurrentRound()
         } else {
-            // All rounds complete
+            // All rounds and repeats complete
             stop()
         }
     }
@@ -494,7 +516,8 @@ struct KriyaView: View {
             name: trimmedName,
             rounds: rounds,
             kriyaBreathInLabel: kriyaBreathInLabel,
-            kriyaBreathOutLabel: kriyaBreathOutLabel
+            kriyaBreathOutLabel: kriyaBreathOutLabel,
+            repeatCount: repeatCount
         )
         allKriyas.append(newKriya)
         
@@ -509,6 +532,7 @@ struct KriyaView: View {
         rounds = kriya.rounds
         kriyaBreathInLabel = kriya.kriyaBreathInLabel
         kriyaBreathOutLabel = kriya.kriyaBreathOutLabel
+        repeatCount = kriya.repeatCount
         kriyaName = ""
     }
     
