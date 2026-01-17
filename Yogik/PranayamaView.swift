@@ -34,6 +34,8 @@ struct PranayamaView: View {
     @AppStorage("selectedVoiceID") private var selectedVoiceID: String = ""
     @AppStorage("prepTimeSeconds") private var prepTimeSeconds: Int = 5
     @AppStorage("pranayamaProgressSoundEnabled") private var pranayamaProgressSoundEnabled: Bool = true
+    @AppStorage("breathInLabel") private var breathInLabel: String = "Inhale"
+    @AppStorage("breathOutLabel") private var breathOutLabel: String = "Exhale"
 
     
     @StateObject private var session = PranayamaSessionManager()
@@ -549,11 +551,11 @@ struct PranayamaView: View {
         
         switch phase {
         case .breathIn:
-            message = "Inhale"
+            message = breathInLabel
         case .holdIn:
             message = "Hold"
         case .breathOut:
-            message = "Exhale"
+            message = breathOutLabel
         case .holdOut:
             message = "Hold"
         case .idle:

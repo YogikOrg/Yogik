@@ -5,6 +5,8 @@ struct SettingsView: View {
     @AppStorage("selectedVoiceID") private var selectedVoiceID: String = ""
     @AppStorage("prepTimeSeconds") private var prepTimeSeconds: Int = 5
     @AppStorage("pranayamaProgressSoundEnabled") private var pranayamaProgressSoundEnabled: Bool = true
+    @AppStorage("breathInLabel") private var breathInLabel: String = "Inhale"
+    @AppStorage("breathOutLabel") private var breathOutLabel: String = "Exhale"
     @Environment(\.dismiss) private var dismiss
     @State private var availableVoices: [AVSpeechSynthesisVoice] = []
 
@@ -29,6 +31,18 @@ struct SettingsView: View {
                 
                 Section(header: Text("Pranayama")) {
                     Toggle("Progress Sound", isOn: $pranayamaProgressSoundEnabled)
+                    HStack {
+                        Text("Breath-in text")
+                        Spacer()
+                        TextField("", text: $breathInLabel)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    HStack {
+                        Text("Breathout text")
+                        Spacer()
+                        TextField("", text: $breathOutLabel)
+                            .multilineTextAlignment(.trailing)
+                    }
                 }
 
                 Section {
