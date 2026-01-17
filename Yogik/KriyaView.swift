@@ -69,6 +69,8 @@ struct KriyaView: View {
         values.append(contentsOf: stride(from: 550, through: 1000, by: 50))
         return values
     }()
+    private let kriyaBreathInOptions: [String] = ["In", "Inhale", "Breath In"]
+    private let kriyaBreathOutOptions: [String] = ["Out", "Exhale", "Breath out"]
     
     @AppStorage("selectedVoiceID") private var selectedVoiceID: String = ""
     @AppStorage("prepTimeSeconds") private var prepTimeSeconds: Int = 5
@@ -173,16 +175,24 @@ struct KriyaView: View {
                                 
                                 Section {
                                     HStack {
-                                        Text("Breath-in text")
+                                        Text("Breath-in sound")
                                         Spacer()
-                                        TextField("", text: $kriyaBreathInLabel)
-                                            .multilineTextAlignment(.trailing)
+                                        Picker("", selection: $kriyaBreathInLabel) {
+                                            ForEach(kriyaBreathInOptions, id: \.self) { option in
+                                                Text(option).tag(option)
+                                            }
+                                        }
+                                        .pickerStyle(.menu)
                                     }
                                     HStack {
-                                        Text("Breathout text")
+                                        Text("Breathout sound")
                                         Spacer()
-                                        TextField("", text: $kriyaBreathOutLabel)
-                                            .multilineTextAlignment(.trailing)
+                                        Picker("", selection: $kriyaBreathOutLabel) {
+                                            ForEach(kriyaBreathOutOptions, id: \.self) { option in
+                                                Text(option).tag(option)
+                                            }
+                                        }
+                                        .pickerStyle(.menu)
                                     }
                                 }
                         
