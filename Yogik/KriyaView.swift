@@ -275,44 +275,33 @@ struct KriyaView: View {
                             .buttonStyle(.borderedProminent)
                             .disabled(session.isRunning || rounds.isEmpty)
                         }
-                    }
-                    
-                    // Saved Kriyas Section
-                    if !getSavedKriyas().isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Saved Kriyas")
-                                .font(.headline)
-                                .padding(.horizontal)
-                                .padding(.top, 8)
-                            
-                            VStack(spacing: 8) {
+                        
+                        if !getSavedKriyas().isEmpty {
+                            Section {
                                 ForEach(getSavedKriyas()) { saved in
-                                    HStack(spacing: 12) {
-                                        Button(action: { loadKriya(saved) }) {
-                                            VStack(alignment: .leading, spacing: 4) {
-                                                Text(saved.name)
-                                                    .font(.subheadline)
-                                                    .fontWeight(.semibold)
-                                                    .foregroundColor(.primary)
-                                                Text("\(saved.rounds.count) round\(saved.rounds.count == 1 ? "" : "s")")
-                                                    .font(.caption)
-                                                    .foregroundColor(.secondary)
-                                            }
-                                            Spacer()
-                                        }
-                                        Button(action: { deleteSavedKriya(saved) }) {
-                                            Image(systemName: "trash")
-                                                .foregroundColor(.red)
+                                    Button(action: { loadKriya(saved) }) {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(saved.name)
+                                                .font(.subheadline)
+                                                .fontWeight(.semibold)
+                                                .foregroundColor(.primary)
+                                            Text("\(saved.rounds.count) round\(saved.rounds.count == 1 ? "" : "s")")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
                                         }
                                     }
-                                    .padding(.vertical, 8)
-                                    .padding(.horizontal, 12)
-                                    .background(Color.gray.opacity(0.1))
-                                    .cornerRadius(8)
                                 }
+                                .onDelete { indexSet in
+                                    let kriyas = getSavedKriyas()
+                                    for index in indexSet {
+                                        if index < kriyas.count {
+                                            deleteSavedKriya(kriyas[index])
+                                        }
+                                    }
+                                }
+                            } header: {
+                                Text("Saved Kriyas")
                             }
-                            .padding(.horizontal)
-                            .padding(.bottom, 8)
                         }
                     }
                     Spacer()
