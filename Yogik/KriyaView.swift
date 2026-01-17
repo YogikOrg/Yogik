@@ -9,13 +9,13 @@ import SwiftUI
 import AVFoundation
 
 struct KriyaView: View {
-    struct Round: Identifiable {
+    struct Round: Identifiable, Codable {
         let id: UUID
         var breathInSeconds: Double
         var breathOutSeconds: Double
         var counts: Int
         
-        init(id: UUID = UUID(), breathInSeconds: Double = 1.0, breathOutSeconds: Double = 1.0, counts: Int = 1) {
+        init(id: UUID = UUID(), breathInSeconds: Double = 1.0, breathOutSeconds: Double = 1.0, counts: Int = 20) {
             self.id = id
             self.breathInSeconds = breathInSeconds
             self.breathOutSeconds = breathOutSeconds
@@ -23,11 +23,28 @@ struct KriyaView: View {
         }
     }
     
+    struct SavedKriya: Codable, Identifiable {
+        let id: UUID
+        let name: String
+        let rounds: [Round]
+        let kriyaBreathInLabel: String
+        let kriyaBreathOutLabel: String
+        
+        init(id: UUID = UUID(), name: String, rounds: [Round], kriyaBreathInLabel: String = "Inhale", kriyaBreathOutLabel: String = "Exhale") {
+            self.id = id
+            self.name = name
+            self.rounds = rounds
+            self.kriyaBreathInLabel = kriyaBreathInLabel
+            self.kriyaBreathOutLabel = kriyaBreathOutLabel
+        }
+    }
+    
     @State private var rounds: [Round] = [Round()]
     @State private var currentRoundIndex: Int = 0
     @State private var currentRoundCount: Int = 1
-    @State private var kriyaBreathInLabel: String = "Inhale"
-    @State private var kriyaBreathOutLabel: String = "Exhale"
+    @State private var kriyaBreathInLabel: String = "In"
+    @State private var kriyaBreathOutLabel: String = "Out"
+    @State private var kriyaName: String = ""
     @State private var elapsed: Int = 0
     @State private var elapsedFractional: Double = 0.0
     @State private var isPaused: Bool = false
@@ -40,6 +57,7 @@ struct KriyaView: View {
     @AppStorage("prepTimeSeconds") private var prepTimeSeconds: Int = 5
     @AppStorage("breathInLabel") private var breathInLabel: String = "Inhale"
     @AppStorage("breathOutLabel") private var breathOutLabel: String = "Exhale"
+    @AppStorage("savedKriyas") private var savedKriyas: Data = Data()
     
     @StateObject private var session = PranayamaSessionManager()
     
@@ -98,29 +116,41 @@ struct KriyaView: View {
                 } else {
                     // Setup UI
                     Form {
-                        Section(header: Text("Breath Prompts")) {
-                            HStack {
-                                Text("Breath-in text")
-                                Spacer()
-                                TextField("", text: $kriyaBreathInLabel)
-                                    .multilineTextAlignment(.trailing)
-                            }
-                            HStack {
-                                Text("Breathout text")
-                                Spacer()
-                                TextField("", text: $kriyaBreathOutLabel)
-                                    .multilineTextAlignment(.trailing)
-                            }
-                        }
+                        Section(header: Text("Save This Kriya")) {
+                                    HStack {
+                                        Text("Kriya name")
+                                        Spacer()
+                                        TextField("Enter name", text: $kriyaName)
+                                            .multilineTextAlignment(.trailing)
+                                    }
+                                }
+                                
+                                Section(header: Text("Breath Prompts")) {
+                                    HStack {
+                                        Text("Breath-in text")
+                                        Spacer()
+                                        TextField("", text: $kriyaBreathInLabel)
+                                            .multilineTextAlignment(.trailing)
+                                    }
+                                    HStack {
+                                        Text("Breathout text")
+                                        Spacer()
+                                        TextField("", text: $kriyaBreathOutLabel)
+                                            .multilineTextAlignment(.trailing)
+                                    }
+                                }
                         
                         Section(header: Text("Rounds")) {
                             ForEach($rounds) { $round in
-                                HStack(spacing: 12) {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("Round \(rounds.firstIndex(where: { $0.id == round.id })! + 1)")
-                                            .font(.subheadline)
-                                            .fontWeight(.semibold)
-                                        HStack(spacing: 8) {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Round \(rounds.firstIndex(where: { $0.id == round.id })! + 1)")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                    HStack(spacing: 12) {
+                                        HStack(spacing: 4) {
+                                            Text("in")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
                                             Menu {
                                                 ForEach(Array(stride(from: 0.5, through: 3.0, by: 0.5)), id: \.self) { value in
                                                     Button("\(String(format: "%.1f", value))s") {
@@ -129,14 +159,19 @@ struct KriyaView: View {
                                                 }
                                             } label: {
                                                 Text(String(format: "%.1f", round.breathInSeconds))
-                                                    .frame(minWidth: 50)
-                                                    .padding(.vertical, 6)
+                                                    .frame(minWidth: 45)
+                                                    .padding(.vertical, 4)
+                                                    .padding(.horizontal, 6)
                                                     .background(Color.gray.opacity(0.1))
-                                                    .cornerRadius(6)
+                                                    .cornerRadius(4)
+                                                    .font(.caption)
                                             }
-                                            
-                                            Text(":")
-                                            
+                                        }
+                                        
+                                        HStack(spacing: 4) {
+                                            Text("out")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
                                             Menu {
                                                 ForEach(Array(stride(from: 0.5, through: 3.0, by: 0.5)), id: \.self) { value in
                                                     Button("\(String(format: "%.1f", value))s") {
@@ -145,28 +180,34 @@ struct KriyaView: View {
                                                 }
                                             } label: {
                                                 Text(String(format: "%.1f", round.breathOutSeconds))
-                                                    .frame(minWidth: 50)
-                                                    .padding(.vertical, 6)
+                                                    .frame(minWidth: 45)
+                                                    .padding(.vertical, 4)
+                                                    .padding(.horizontal, 6)
                                                     .background(Color.gray.opacity(0.1))
-                                                    .cornerRadius(6)
+                                                    .cornerRadius(4)
+                                                    .font(.caption)
                                             }
                                         }
-                                    }
-                                    Spacer()
-                                    VStack(alignment: .trailing, spacing: 4) {
-                                        Text("Counts")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                        TextField("", value: $round.counts, format: .number)
-                                            .keyboardType(.numberPad)
-                                            .frame(minWidth: 45)
-                                            .padding(.vertical, 6)
-                                            .padding(.horizontal, 8)
-                                            .background(Color.gray.opacity(0.1))
-                                            .cornerRadius(6)
-                                            .multilineTextAlignment(.center)
+                                        
+                                        Spacer()
+                                        
+                                        HStack(spacing: 4) {
+                                            Text("x")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                            TextField("", value: $round.counts, format: .number)
+                                                .keyboardType(.numberPad)
+                                                .frame(maxWidth: 50)
+                                                .padding(.vertical, 4)
+                                                .padding(.horizontal, 6)
+                                                .background(Color.gray.opacity(0.1))
+                                                .cornerRadius(4)
+                                                .multilineTextAlignment(.center)
+                                                .font(.caption)
+                                        }
                                     }
                                 }
+                                .padding(.vertical, 4)
                             }
                             .onDelete(perform: deleteRound)
                             
@@ -188,6 +229,45 @@ struct KriyaView: View {
                             }
                             .buttonStyle(.borderedProminent)
                             .disabled(session.isRunning || rounds.isEmpty)
+                        }
+                    }
+                    
+                    // Saved Kriyas Section
+                    if !getSavedKriyas().isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Saved Kriyas")
+                                .font(.headline)
+                                .padding(.horizontal)
+                                .padding(.top, 8)
+                            
+                            VStack(spacing: 8) {
+                                ForEach(getSavedKriyas()) { saved in
+                                    Button(action: { loadKriya(saved) }) {
+                                        HStack(spacing: 12) {
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                Text(saved.name)
+                                                    .font(.subheadline)
+                                                    .fontWeight(.semibold)
+                                                    .foregroundColor(.primary)
+                                                Text("\(saved.rounds.count) round\(saved.rounds.count == 1 ? "" : "s")")
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                            Spacer()
+                                            Button(action: { deleteSavedKriya(saved) }) {
+                                                Image(systemName: "trash")
+                                                    .foregroundColor(.red)
+                                            }
+                                        }
+                                        .padding(.vertical, 8)
+                                        .padding(.horizontal, 12)
+                                        .background(Color.gray.opacity(0.1))
+                                        .cornerRadius(8)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal)
+                            .padding(.bottom, 8)
                         }
                     }
                     Spacer()
@@ -260,6 +340,12 @@ struct KriyaView: View {
     private func start() {
         guard session.state == .idle else { return }
         guard !rounds.isEmpty else { return }
+        
+        // Auto-save if user provided a name
+        let trimmedName = kriyaName.trimmingCharacters(in: .whitespaces)
+        if !trimmedName.isEmpty {
+            saveKriya()
+        }
         
         currentRoundIndex = 0
         currentRoundCount = 1
@@ -392,6 +478,49 @@ struct KriyaView: View {
     
     private func deleteRound(at offsets: IndexSet) {
         rounds.remove(atOffsets: offsets)
+    }
+    
+    private func getSavedKriyas() -> [SavedKriya] {
+        guard let data = UserDefaults.standard.data(forKey: "savedKriyas") else { return [] }
+        let decoder = JSONDecoder()
+        return (try? decoder.decode([SavedKriya].self, from: data)) ?? []
+    }
+    
+    private func saveKriya() {
+        let trimmedName = kriyaName.trimmingCharacters(in: .whitespaces)
+        guard !trimmedName.isEmpty, !rounds.isEmpty else { return }
+        
+        var allKriyas = getSavedKriyas()
+        let newKriya = SavedKriya(
+            name: trimmedName,
+            rounds: rounds,
+            kriyaBreathInLabel: kriyaBreathInLabel,
+            kriyaBreathOutLabel: kriyaBreathOutLabel
+        )
+        allKriyas.append(newKriya)
+        
+        let encoder = JSONEncoder()
+        if let encoded = try? encoder.encode(allKriyas) {
+            UserDefaults.standard.set(encoded, forKey: "savedKriyas")
+            kriyaName = ""
+        }
+    }
+    
+    private func loadKriya(_ kriya: SavedKriya) {
+        rounds = kriya.rounds
+        kriyaBreathInLabel = kriya.kriyaBreathInLabel
+        kriyaBreathOutLabel = kriya.kriyaBreathOutLabel
+        kriyaName = ""
+    }
+    
+    private func deleteSavedKriya(_ kriya: SavedKriya) {
+        var allKriyas = getSavedKriyas()
+        allKriyas.removeAll { $0.id == kriya.id }
+        
+        let encoder = JSONEncoder()
+        if let encoded = try? encoder.encode(allKriyas) {
+            UserDefaults.standard.set(encoded, forKey: "savedKriyas")
+        }
     }
 }
 
