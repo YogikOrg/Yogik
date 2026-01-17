@@ -20,9 +20,15 @@ struct ContentView: View {
 
             YogaView()
                 .tabItem {
-                    Label("Yoga", systemImage: "figure.cooldown")
+                    Label("Yoga Sequences", systemImage: "figure.cooldown")
                 }
                 .tag(1)
+            
+            KriyaView()
+                .tabItem {
+                    Label("Kriya", systemImage: "flame")
+                }
+                .tag(2)
         }
     }
 }
