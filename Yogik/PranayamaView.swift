@@ -72,6 +72,7 @@ struct PranayamaView: View {
     @State private var history: [TimerSetup] = []
     private let historyKey = "Yogik.pranayamaHistory"
     @State private var showingSettings: Bool = false
+    @State private var showRatiosZeroAlert: Bool = false
     
     var body: some View {
         NavigationView {
@@ -195,7 +196,7 @@ struct PranayamaView: View {
                         }
                         
                         Section {
-                            Button(action: { start(); showingDial = true }) {
+                            Button(action: { start(); showingDial = inSession }) {
                                 HStack(spacing: 8) {
                                     Image(systemName: "play.fill")
                                     Text("Start")
@@ -203,7 +204,7 @@ struct PranayamaView: View {
                                 .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.borderedProminent)
-                            .disabled(isRunning || totalCycleTime == 0)
+                            .disabled(isRunning)
                         }
                         
                         Section(header: Text("Saved timers")) {
@@ -219,7 +220,7 @@ struct PranayamaView: View {
                                         holdOutRatio = item.holdOutRatio
                                         selectedPace = Pace(rawValue: item.pace) ?? .fast
                                         start()
-                                        showingDial = true
+                                        showingDial = inSession
                                     }) {
                                         HStack {
                                             VStack(alignment: .leading) {
@@ -293,6 +294,9 @@ struct PranayamaView: View {
             .onAppear {
                 loadHistory()
             }
+            .alert("All ratios can't be zero", isPresented: $showRatiosZeroAlert) {
+                Button("OK", role: .cancel) {}
+            }
         }
     }
     
@@ -360,7 +364,10 @@ struct PranayamaView: View {
     
     private func start() {
         guard session.state == .idle else { return }
-        guard totalCycleTime > 0 else { return }
+        if totalCycleTime == 0 {
+            showRatiosZeroAlert = true
+            return
+        }
         
         addOrUpdateHistoryOnStart()
         
@@ -508,13 +515,26 @@ struct PranayamaView: View {
         countElapsed = 0  // Reset elapsed time for new round
         elapsed = 1  // Reset count to 1 for new round
         roundCount += 1
-        // Start next round
+        // Start next round by selecting the first available phase in order
         if breathInRatio > 0 {
             phase = .breathIn
             remaining = breathInRatio
             speakPhasePrompt(.breathIn)
+        } else if holdInRatio > 0 {
+            phase = .holdIn
+            remaining = holdInRatio
+            speakPhasePrompt(.holdIn)
+        } else if breathOutRatio > 0 {
+            phase = .breathOut
+            remaining = breathOutRatio
+            speakPhasePrompt(.breathOut)
+        } else if holdOutRatio > 0 {
+            phase = .holdOut
+            remaining = holdOutRatio
+            speakPhasePrompt(.holdOut)
         } else {
-            advanceToNextPhase()
+            // Should not happen due to start() guard, but be safe
+            stop()
         }
     }
     
