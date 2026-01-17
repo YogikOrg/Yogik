@@ -55,6 +55,7 @@ struct KriyaView: View {
     @State private var showingDial: Bool = false
     @State private var inSession: Bool = false
     @State private var inPrepPhase: Bool = false
+    @State private var showingEndPrompt: Bool = false
     @State private var prepWorkItem: DispatchWorkItem?
     
     @AppStorage("selectedVoiceID") private var selectedVoiceID: String = ""
@@ -75,47 +76,75 @@ struct KriyaView: View {
         NavigationView {
             VStack(spacing: 20) {
                 if showingDial {
-                    // Dial UI
-                    ZStack {
-                        Circle()
-                            .stroke(Color.gray.opacity(0.2), lineWidth: 20)
-                            .frame(width: 220, height: 220)
-                        
-                        Circle()
-                            .trim(from: 0, to: CGFloat(progress))
-                            .stroke(phaseColor, style: StrokeStyle(lineWidth: 20, lineCap: .round))
-                            .rotationEffect(.degrees(-90))
-                            .frame(width: 220, height: 220)
-                            .animation(.easeInOut(duration: 0.2), value: progress)
-                        
-                        VStack {
-                            Text(phaseText)
-                                .font(.headline)
-                                .foregroundColor(phaseColor)
-                            Text("\(elapsed)")
-                                .font(.system(size: 48, weight: .bold, design: .monospaced))
+                    if showingEndPrompt {
+                        // End Prompt UI
+                        VStack(spacing: 40) {
+                            Spacer()
+                            VStack(spacing: 20) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 60))
+                                    .foregroundColor(.green)
+                                Text("Relax, take few long and deep breaths")
+                                    .font(.title2)
+                                    .fontWeight(.semibold)
+                                    .multilineTextAlignment(.center)
+                            }
+                            Spacer()
                         }
-                    }
-                    .padding(.top, 12)
-                    
-                    HStack(spacing: 20) {
-                        Button(action: togglePause) {
-                            if isPaused {
-                                Label("Resume", systemImage: "play.fill")
-                            } else {
-                                Label("Pause", systemImage: "pause.fill")
+                        .padding(.horizontal, 30)
+                    } else {
+                        // Dial UI
+                        ZStack {
+                            Circle()
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 20)
+                                .frame(width: 220, height: 220)
+                            
+                            Circle()
+                                .trim(from: 0, to: CGFloat(progress))
+                                .stroke(phaseColor, style: StrokeStyle(lineWidth: 20, lineCap: .round))
+                                .rotationEffect(.degrees(-90))
+                                .frame(width: 220, height: 220)
+                                .animation(.easeInOut(duration: 0.2), value: progress)
+                            
+                            VStack {
+                                Text(phaseText)
+                                    .font(.headline)
+                                    .foregroundColor(phaseColor)
+                                Text("\(elapsed)")
+                                    .font(.system(size: 48, weight: .bold, design: .monospaced))
                             }
                         }
-                        .buttonStyle(.bordered)
-                        .disabled(!inSession || inPrepPhase)
-
-                        Button(action: stop) {
-                            Label("Stop", systemImage: "stop.fill")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(!inSession)
+                        .padding(.top, 12)
                     }
-                    .padding()
+                    
+                    if showingEndPrompt {
+                        HStack(spacing: 20) {
+                            Button(action: stop) {
+                                Label("Done", systemImage: "checkmark.circle.fill")
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                        .padding()
+                    } else {
+                        HStack(spacing: 20) {
+                            Button(action: togglePause) {
+                                if isPaused {
+                                    Label("Resume", systemImage: "play.fill")
+                                } else {
+                                    Label("Pause", systemImage: "pause.fill")
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(!inSession || inPrepPhase)
+
+                            Button(action: stop) {
+                                Label("Stop", systemImage: "stop.fill")
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(!inSession)
+                        }
+                        .padding()
+                    }
                     Spacer()
                 } else {
                     // Setup UI
@@ -398,6 +427,7 @@ struct KriyaView: View {
         elapsedFractional = 0.0
         isPaused = false
         showingDial = false
+        showingEndPrompt = false
         inSession = false
         inPrepPhase = false
         currentRoundIndex = 0
@@ -461,8 +491,11 @@ struct KriyaView: View {
             currentRoundCount = 1
             playCurrentRound()
         } else {
-            // All rounds and repeats complete
-            stop()
+            // All rounds and repeats complete, show ending prompt
+            phase = .idle
+            session.pause()
+            showingEndPrompt = true
+            AudioManager.shared.speak(message: "Relax, take few long and deep breaths", voiceID: selectedVoiceID, rate: 0.5)
         }
     }
     
