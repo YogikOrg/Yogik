@@ -71,6 +71,22 @@ struct KriyaView: View {
     }()
     private let kriyaBreathInOptions: [String] = ["In", "Inhale", "Breath In"]
     private let kriyaBreathOutOptions: [String] = ["Out", "Exhale", "Breath out"]
+    private var displayKriyaBreathInOptions: [String] {
+        var opts = kriyaBreathInOptions
+        let current = kriyaBreathInLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !current.isEmpty && !opts.contains(current) {
+            opts.insert(current, at: 0)
+        }
+        return opts
+    }
+    private var displayKriyaBreathOutOptions: [String] {
+        var opts = kriyaBreathOutOptions
+        let current = kriyaBreathOutLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !current.isEmpty && !opts.contains(current) {
+            opts.insert(current, at: 0)
+        }
+        return opts
+    }
     
     @AppStorage("selectedVoiceID") private var selectedVoiceID: String = ""
     @AppStorage("prepTimeSeconds") private var prepTimeSeconds: Int = 5
@@ -178,7 +194,7 @@ struct KriyaView: View {
                                         Text("Breath-in sound")
                                         Spacer()
                                         Picker("", selection: $kriyaBreathInLabel) {
-                                            ForEach(kriyaBreathInOptions, id: \.self) { option in
+                                            ForEach(displayKriyaBreathInOptions, id: \.self) { option in
                                                 Text(option).tag(option)
                                             }
                                         }
@@ -188,7 +204,7 @@ struct KriyaView: View {
                                         Text("Breathout sound")
                                         Spacer()
                                         Picker("", selection: $kriyaBreathOutLabel) {
-                                            ForEach(kriyaBreathOutOptions, id: \.self) { option in
+                                            ForEach(displayKriyaBreathOutOptions, id: \.self) { option in
                                                 Text(option).tag(option)
                                             }
                                         }
