@@ -57,6 +57,7 @@ struct KriyaView: View {
     @State private var inPrepPhase: Bool = false
     @State private var showingEndPrompt: Bool = false
     @State private var prepWorkItem: DispatchWorkItem?
+    @State private var restPrepPromptSpoken: Bool = false
 
     private let stageCountOptions: [Int] = {
         var values: [Int] = []
@@ -72,11 +73,12 @@ struct KriyaView: View {
     @AppStorage("breathInLabel") private var breathInLabel: String = "Inhale"
     @AppStorage("breathOutLabel") private var breathOutLabel: String = "Exhale"
     @AppStorage("savedKriyas") private var savedKriyas: Data = Data()
+    @AppStorage("restBetweenRoundsSeconds") private var restBetweenRoundsSeconds: Int = 0
     
     @StateObject private var session = PranayamaSessionManager()
     
     enum Phase {
-        case idle, breathIn, breathOut
+        case idle, breathIn, breathOut, rest
     }
     @State private var phase: Phase = .idle
     @State private var showingSettings: Bool = false
@@ -144,7 +146,7 @@ struct KriyaView: View {
                                 }
                             }
                             .buttonStyle(.bordered)
-                            .disabled(!inSession || inPrepPhase)
+                            .disabled(!inSession || inPrepPhase || phase == .rest)
 
                             Button(action: stop) {
                                 Label("Stop", systemImage: "stop.fill")
@@ -278,6 +280,15 @@ struct KriyaView: View {
                         }
                         
                         Section {
+                            Picker("Rest between rounds", selection: $restBetweenRoundsSeconds) {
+                                ForEach(Array(stride(from: 0, through: 120, by: 10)), id: \.self) { value in
+                                    Text("\(value) sec").tag(value)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                        }
+                        
+                        Section {
                             Button(action: { start(); showingDial = true }) {
                                 HStack(spacing: 8) {
                                     Image(systemName: "play.fill")
@@ -357,6 +368,7 @@ struct KriyaView: View {
         switch phase {
         case .breathIn: return Color.green
         case .breathOut: return Color.orange
+        case .rest: return Color.gray
         case .idle: return Color.gray
         }
     }
@@ -366,6 +378,7 @@ struct KriyaView: View {
         case .idle: return "Idle"
         case .breathIn: return kriyaBreathInLabel
         case .breathOut: return kriyaBreathOutLabel
+        case .rest: return "Rest"
         }
     }
     
@@ -454,6 +467,15 @@ struct KriyaView: View {
         
         let currentStage = stages[currentStageIndex]
         
+        // During rest, speak a prep prompt 3 seconds before next round
+        if phase == .rest {
+            let remaining = currentPhaseDuration - elapsedFractional
+            if !restPrepPromptSpoken && restBetweenRoundsSeconds >= 3 && remaining <= 3.0 && remaining > 0 {
+                restPrepPromptSpoken = true
+                AudioManager.shared.speak(message: "Lets get ready for next round", voiceID: selectedVoiceID, rate: 0.5)
+            }
+        }
+        
         if elapsedFractional >= currentPhaseDuration {
             // Phase complete, move to next
             switch phase {
@@ -471,6 +493,11 @@ struct KriyaView: View {
                 moveToNextStage()
             case .idle:
                 stop()
+            case .rest:
+                // Rest complete; start next round (sequence of stages)
+                currentStageIndex = 0
+                currentStageCount = 1
+                playCurrentStage()
             }
         }
     }
@@ -487,11 +514,20 @@ struct KriyaView: View {
             currentStageCount = 1
             playCurrentStage()
         } else if remainingRounds > 0 {
-            // All stages complete, repeat the entire sequence
+            // All stages complete; insert rest between rounds if configured
             remainingRounds -= 1
-            currentStageIndex = 0
-            currentStageCount = 1
-            playCurrentStage()
+            if restBetweenRoundsSeconds > 0 {
+                // Speak ending prompt between rounds when rest is enabled
+                AudioManager.shared.speak(message: "Relax, take few long and deep breaths", voiceID: selectedVoiceID, rate: 0.5)
+                phase = .rest
+                elapsed = 0
+                elapsedFractional = 0.0
+                restPrepPromptSpoken = false
+            } else {
+                currentStageIndex = 0
+                currentStageCount = 1
+                playCurrentStage()
+            }
         } else {
             // All stages and repeats complete, show ending prompt
             phase = .idle
@@ -524,6 +560,7 @@ struct KriyaView: View {
         switch phase {
         case .breathIn: return stage.breathInSeconds
         case .breathOut: return stage.breathOutSeconds
+        case .rest: return Double(restBetweenRoundsSeconds)
         case .idle: return 1.0
         }
     }
