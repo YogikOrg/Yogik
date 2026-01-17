@@ -9,7 +9,7 @@ import SwiftUI
 import AVFoundation
 
 struct KriyaView: View {
-    struct Round: Identifiable, Codable {
+    struct Stage: Identifiable, Codable {
         let id: UUID
         var breathInSeconds: Double
         var breathOutSeconds: Double
@@ -26,24 +26,24 @@ struct KriyaView: View {
     struct SavedKriya: Codable, Identifiable {
         let id: UUID
         let name: String
-        let rounds: [Round]
+        let stages: [Stage]
         let kriyaBreathInLabel: String
         let kriyaBreathOutLabel: String
         let repeatCount: Int
         
-        init(id: UUID = UUID(), name: String, rounds: [Round], kriyaBreathInLabel: String = "Inhale", kriyaBreathOutLabel: String = "Exhale", repeatCount: Int = 1) {
+        init(id: UUID = UUID(), name: String, stages: [Stage], kriyaBreathInLabel: String = "Inhale", kriyaBreathOutLabel: String = "Exhale", repeatCount: Int = 1) {
             self.id = id
             self.name = name
-            self.rounds = rounds
+            self.stages = stages
             self.kriyaBreathInLabel = kriyaBreathInLabel
             self.kriyaBreathOutLabel = kriyaBreathOutLabel
             self.repeatCount = repeatCount
         }
     }
     
-    @State private var rounds: [Round] = [Round()]
-    @State private var currentRoundIndex: Int = 0
-    @State private var currentRoundCount: Int = 1
+    @State private var stages: [Stage] = [Stage()]
+    @State private var currentStageIndex: Int = 0
+    @State private var currentStageCount: Int = 1
     @State private var kriyaBreathInLabel: String = "In"
     @State private var kriyaBreathOutLabel: String = "Out"
     @State private var kriyaName: String = ""
@@ -176,7 +176,7 @@ struct KriyaView: View {
                         Section {
                             VStack(alignment: .leading, spacing: 12) {
                                 HStack(spacing: 0) {
-                                    Text("Round")
+                                    Text("Stage")
                                         .font(.caption)
                                         .fontWeight(.semibold)
                                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -196,19 +196,19 @@ struct KriyaView: View {
                                 .padding(.bottom, 8)
                             }
                             
-                            ForEach($rounds) { $round in
+                            ForEach($stages) { $stage in
                                 HStack(spacing: 0) {
-                                    Text("\(rounds.firstIndex(where: { $0.id == round.id })! + 1)")
+                                    Text("\(stages.firstIndex(where: { $0.id == stage.id })! + 1)")
                                         .font(.caption)
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                     Menu {
                                         ForEach(Array(stride(from: 0.5, through: 3.0, by: 0.5)), id: \.self) { value in
                                             Button("\(String(format: "%.1f", value))s") {
-                                                round.breathInSeconds = value
+                                                stage.breathInSeconds = value
                                             }
                                         }
                                     } label: {
-                                        Text(String(format: "%.1f", round.breathInSeconds))
+                                        Text(String(format: "%.1f", stage.breathInSeconds))
                                             .font(.caption)
                                             .padding(.vertical, 6)
                                             .padding(.horizontal, 8)
@@ -219,11 +219,11 @@ struct KriyaView: View {
                                     Menu {
                                         ForEach(Array(stride(from: 0.5, through: 3.0, by: 0.5)), id: \.self) { value in
                                             Button("\(String(format: "%.1f", value))s") {
-                                                round.breathOutSeconds = value
+                                                stage.breathOutSeconds = value
                                             }
                                         }
                                     } label: {
-                                        Text(String(format: "%.1f", round.breathOutSeconds))
+                                        Text(String(format: "%.1f", stage.breathOutSeconds))
                                             .font(.caption)
                                             .padding(.vertical, 6)
                                             .padding(.horizontal, 8)
@@ -231,7 +231,7 @@ struct KriyaView: View {
                                             .cornerRadius(4)
                                     }
                                     .frame(maxWidth: .infinity, alignment: .center)
-                                    TextField("", value: $round.counts, format: .number)
+                                    TextField("", value: $stage.counts, format: .number)
                                         .keyboardType(.numberPad)
                                         .font(.caption)
                                         .padding(.vertical, 6)
@@ -243,12 +243,12 @@ struct KriyaView: View {
                                 }
                                 .padding(.vertical, 6)
                             }
-                            .onDelete(perform: deleteRound)
+                            .onDelete(perform: deleteStage)
                             
-                            Button(action: addRound) {
+                            Button(action: addStage) {
                                 HStack(spacing: 8) {
                                     Image(systemName: "plus.circle")
-                                    Text("Add Round")
+                                    Text("Add Stage")
                                 }
                             }
                         }
@@ -273,7 +273,7 @@ struct KriyaView: View {
                                 .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.borderedProminent)
-                            .disabled(session.isRunning || rounds.isEmpty)
+                            .disabled(session.isRunning || stages.isEmpty)
                         }
                         
                         if !getSavedKriyas().isEmpty {
@@ -285,7 +285,7 @@ struct KriyaView: View {
                                                 .font(.subheadline)
                                                 .fontWeight(.semibold)
                                                 .foregroundColor(.primary)
-                                            Text("\(saved.rounds.count) round\(saved.rounds.count == 1 ? "" : "s")")
+                                            Text("\(saved.stages.count) stage\(saved.stages.count == 1 ? "" : "s")")
                                                 .font(.caption)
                                                 .foregroundColor(.secondary)
                                         }
@@ -371,7 +371,7 @@ struct KriyaView: View {
     
     private func start() {
         guard session.state == .idle else { return }
-        guard !rounds.isEmpty else { return }
+        guard !stages.isEmpty else { return }
         
         // Auto-save if user provided a name
         let trimmedName = kriyaName.trimmingCharacters(in: .whitespaces)
@@ -379,8 +379,8 @@ struct KriyaView: View {
             saveKriya()
         }
         
-        currentRoundIndex = 0
-        currentRoundCount = 1
+        currentStageIndex = 0
+        currentStageCount = 1
         remainingRepeats = repeatCount - 1
         elapsed = 0
         elapsedFractional = 0.0
@@ -392,7 +392,7 @@ struct KriyaView: View {
         
         let workItem = DispatchWorkItem {
             self.inPrepPhase = false
-            self.playCurrentRound()
+            self.playCurrentStage()
             
             // Start session with 0.1s tick interval
             self.session.start { timeInterval in
@@ -419,8 +419,8 @@ struct KriyaView: View {
         showingEndPrompt = false
         inSession = false
         inPrepPhase = false
-        currentRoundIndex = 0
-        currentRoundCount = 1
+        currentStageIndex = 0
+        currentStageCount = 1
         UIApplication.shared.isIdleTimerDisabled = false
     }
     
@@ -439,48 +439,48 @@ struct KriyaView: View {
         elapsedFractional += timeInterval
         elapsed = Int(elapsedFractional)
         
-        let currentRound = rounds[currentRoundIndex]
+        let currentStage = stages[currentStageIndex]
         
         if elapsedFractional >= currentPhaseDuration {
             // Phase complete, move to next
             switch phase {
             case .breathIn:
-                if currentRound.breathOutSeconds > 0 {
+                if currentStage.breathOutSeconds > 0 {
                     phase = .breathOut
                     elapsed = 0
                     elapsedFractional = 0.0
-                    let rate = getVoiceRateForDuration(currentRound.breathOutSeconds)
+                    let rate = getVoiceRateForDuration(currentStage.breathOutSeconds)
                     AudioManager.shared.speak(message: kriyaBreathOutLabel, voiceID: selectedVoiceID, rate: rate)
                 } else {
-                    moveToNextRound()
+                    moveToNextStage()
                 }
             case .breathOut:
-                moveToNextRound()
+                moveToNextStage()
             case .idle:
                 stop()
             }
         }
     }
     
-    private func moveToNextRound() {
-        let currentRound = rounds[currentRoundIndex]
-        if currentRoundCount < currentRound.counts {
-            // Repeat current round
-            currentRoundCount += 1
-            playCurrentRound()
-        } else if currentRoundIndex < rounds.count - 1 {
-            // Move to next round
-            currentRoundIndex += 1
-            currentRoundCount = 1
-            playCurrentRound()
+    private func moveToNextStage() {
+        let currentStage = stages[currentStageIndex]
+        if currentStageCount < currentStage.counts {
+            // Repeat current stage
+            currentStageCount += 1
+            playCurrentStage()
+        } else if currentStageIndex < stages.count - 1 {
+            // Move to next stage
+            currentStageIndex += 1
+            currentStageCount = 1
+            playCurrentStage()
         } else if remainingRepeats > 0 {
-            // All rounds complete, repeat the entire sequence
+            // All stages complete, repeat the entire sequence
             remainingRepeats -= 1
-            currentRoundIndex = 0
-            currentRoundCount = 1
-            playCurrentRound()
+            currentStageIndex = 0
+            currentStageCount = 1
+            playCurrentStage()
         } else {
-            // All rounds and repeats complete, show ending prompt
+            // All stages and repeats complete, show ending prompt
             phase = .idle
             session.pause()
             showingEndPrompt = true
@@ -488,39 +488,39 @@ struct KriyaView: View {
         }
     }
     
-    private func playCurrentRound() {
-        let round = rounds[currentRoundIndex]
-        if round.breathInSeconds > 0 {
+    private func playCurrentStage() {
+        let stage = stages[currentStageIndex]
+        if stage.breathInSeconds > 0 {
             phase = .breathIn
             elapsed = 0
             elapsedFractional = 0.0
-            let rate = getVoiceRateForDuration(round.breathInSeconds)
+            let rate = getVoiceRateForDuration(stage.breathInSeconds)
             AudioManager.shared.speak(message: kriyaBreathInLabel, voiceID: selectedVoiceID, rate: rate)
-        } else if round.breathOutSeconds > 0 {
+        } else if stage.breathOutSeconds > 0 {
             phase = .breathOut
             elapsed = 0
             elapsedFractional = 0.0
-            let rate = getVoiceRateForDuration(round.breathOutSeconds)
+            let rate = getVoiceRateForDuration(stage.breathOutSeconds)
             AudioManager.shared.speak(message: kriyaBreathOutLabel, voiceID: selectedVoiceID, rate: rate)
         }
     }
     
     private var currentPhaseDuration: Double {
-        guard currentRoundIndex < rounds.count else { return 1.0 }
-        let round = rounds[currentRoundIndex]
+        guard currentStageIndex < stages.count else { return 1.0 }
+        let stage = stages[currentStageIndex]
         switch phase {
-        case .breathIn: return round.breathInSeconds
-        case .breathOut: return round.breathOutSeconds
+        case .breathIn: return stage.breathInSeconds
+        case .breathOut: return stage.breathOutSeconds
         case .idle: return 1.0
         }
     }
     
-    private func addRound() {
-        rounds.append(Round())
+    private func addStage() {
+        stages.append(Stage())
     }
     
-    private func deleteRound(at offsets: IndexSet) {
-        rounds.remove(atOffsets: offsets)
+    private func deleteStage(at offsets: IndexSet) {
+        stages.remove(atOffsets: offsets)
     }
     
     private func getSavedKriyas() -> [SavedKriya] {
@@ -531,12 +531,12 @@ struct KriyaView: View {
     
     private func saveKriya() {
         let trimmedName = kriyaName.trimmingCharacters(in: .whitespaces)
-        guard !trimmedName.isEmpty, !rounds.isEmpty else { return }
+        guard !trimmedName.isEmpty, !stages.isEmpty else { return }
         
         var allKriyas = getSavedKriyas()
         let newKriya = SavedKriya(
             name: trimmedName,
-            rounds: rounds,
+            stages: stages,
             kriyaBreathInLabel: kriyaBreathInLabel,
             kriyaBreathOutLabel: kriyaBreathOutLabel,
             repeatCount: repeatCount
@@ -551,7 +551,7 @@ struct KriyaView: View {
     }
     
     private func loadKriya(_ kriya: SavedKriya) {
-        rounds = kriya.rounds
+        stages = kriya.stages
         kriyaBreathInLabel = kriya.kriyaBreathInLabel
         kriyaBreathOutLabel = kriya.kriyaBreathOutLabel
         repeatCount = kriya.repeatCount
