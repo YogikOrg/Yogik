@@ -57,6 +57,15 @@ struct KriyaView: View {
     @State private var inPrepPhase: Bool = false
     @State private var showingEndPrompt: Bool = false
     @State private var prepWorkItem: DispatchWorkItem?
+
+    private let stageCountOptions: [Int] = {
+        var values: [Int] = []
+        values.append(contentsOf: 1...5)
+        values.append(contentsOf: stride(from: 10, through: 50, by: 5))
+        values.append(contentsOf: stride(from: 75, through: 500, by: 25))
+        values.append(contentsOf: stride(from: 550, through: 1000, by: 50))
+        return values
+    }()
     
     @AppStorage("selectedVoiceID") private var selectedVoiceID: String = ""
     @AppStorage("prepTimeSeconds") private var prepTimeSeconds: Int = 5
@@ -231,15 +240,21 @@ struct KriyaView: View {
                                             .cornerRadius(4)
                                     }
                                     .frame(maxWidth: .infinity, alignment: .center)
-                                    TextField("", value: $stage.counts, format: .number)
-                                        .keyboardType(.numberPad)
-                                        .font(.caption)
-                                        .padding(.vertical, 6)
-                                        .padding(.horizontal, 8)
-                                        .background(Color.gray.opacity(0.1))
-                                        .cornerRadius(4)
-                                        .multilineTextAlignment(.center)
-                                        .frame(maxWidth: .infinity, alignment: .center)
+                                    Menu {
+                                        ForEach(stageCountOptions, id: \.self) { value in
+                                            Button("\(value)") {
+                                                stage.counts = value
+                                            }
+                                        }
+                                    } label: {
+                                        Text("\(stage.counts)")
+                                            .font(.caption)
+                                            .padding(.vertical, 6)
+                                            .padding(.horizontal, 8)
+                                            .background(Color.gray.opacity(0.1))
+                                            .cornerRadius(4)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .center)
                                 }
                                 .padding(.vertical, 6)
                             }
@@ -254,14 +269,12 @@ struct KriyaView: View {
                         }
                         
                         Section {
-                            HStack {
-                                Text("Repetition")
-                                Spacer()
-                                TextField("", value: $repeatCount, format: .number)
-                                    .keyboardType(.numberPad)
-                                    .multilineTextAlignment(.trailing)
-                                    .frame(maxWidth: 60)
+                            Picker("Repetition", selection: $repeatCount) {
+                                ForEach(1...10, id: \.self) { value in
+                                    Text("\(value)").tag(value)
+                                }
                             }
+                            .pickerStyle(.menu)
                         }
                         
                         Section {
