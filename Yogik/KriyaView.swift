@@ -29,15 +29,15 @@ struct KriyaView: View {
         let stages: [Stage]
         let kriyaBreathInLabel: String
         let kriyaBreathOutLabel: String
-        let repeatCount: Int
+        let roundCount: Int
         
-        init(id: UUID = UUID(), name: String, stages: [Stage], kriyaBreathInLabel: String = "Inhale", kriyaBreathOutLabel: String = "Exhale", repeatCount: Int = 1) {
+        init(id: UUID = UUID(), name: String, stages: [Stage], kriyaBreathInLabel: String = "Inhale", kriyaBreathOutLabel: String = "Exhale", roundCount: Int = 1) {
             self.id = id
             self.name = name
             self.stages = stages
             self.kriyaBreathInLabel = kriyaBreathInLabel
             self.kriyaBreathOutLabel = kriyaBreathOutLabel
-            self.repeatCount = repeatCount
+            self.roundCount = roundCount
         }
     }
     
@@ -47,8 +47,8 @@ struct KriyaView: View {
     @State private var kriyaBreathInLabel: String = "In"
     @State private var kriyaBreathOutLabel: String = "Out"
     @State private var kriyaName: String = ""
-    @State private var repeatCount: Int = 1
-    @State private var remainingRepeats: Int = 0
+    @State private var roundCount: Int = 1
+    @State private var remainingRounds: Int = 0
     @State private var elapsed: Int = 0
     @State private var elapsedFractional: Double = 0.0
     @State private var isPaused: Bool = false
@@ -269,7 +269,7 @@ struct KriyaView: View {
                         }
                         
                         Section {
-                            Picker("Repetition", selection: $repeatCount) {
+                            Picker("Round", selection: $roundCount) {
                                 ForEach(1...10, id: \.self) { value in
                                     Text("\(value)").tag(value)
                                 }
@@ -394,7 +394,7 @@ struct KriyaView: View {
         
         currentStageIndex = 0
         currentStageCount = 1
-        remainingRepeats = repeatCount - 1
+        remainingRounds = roundCount - 1
         elapsed = 0
         elapsedFractional = 0.0
         isPaused = false
@@ -486,9 +486,9 @@ struct KriyaView: View {
             currentStageIndex += 1
             currentStageCount = 1
             playCurrentStage()
-        } else if remainingRepeats > 0 {
+        } else if remainingRounds > 0 {
             // All stages complete, repeat the entire sequence
-            remainingRepeats -= 1
+            remainingRounds -= 1
             currentStageIndex = 0
             currentStageCount = 1
             playCurrentStage()
@@ -552,7 +552,7 @@ struct KriyaView: View {
             stages: stages,
             kriyaBreathInLabel: kriyaBreathInLabel,
             kriyaBreathOutLabel: kriyaBreathOutLabel,
-            repeatCount: repeatCount
+            roundCount: roundCount
         )
         allKriyas.append(newKriya)
         
@@ -567,7 +567,7 @@ struct KriyaView: View {
         stages = kriya.stages
         kriyaBreathInLabel = kriya.kriyaBreathInLabel
         kriyaBreathOutLabel = kriya.kriyaBreathOutLabel
-        repeatCount = kriya.repeatCount
+        roundCount = kriya.roundCount
         kriyaName = ""
         start()
         showingDial = true
