@@ -58,6 +58,8 @@ struct KriyaView: View {
     @State private var showingEndPrompt: Bool = false
     @State private var prepWorkItem: DispatchWorkItem?
     @State private var restPrepPromptSpoken: Bool = false
+    @State private var showValidationAlert: Bool = false
+    @State private var validationMessage: String = ""
 
     private let stageCountOptions: [Int] = {
         var values: [Int] = []
@@ -213,7 +215,7 @@ struct KriyaView: View {
                                         .font(.caption)
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                     Menu {
-                                        ForEach(Array(stride(from: 0.5, through: 3.0, by: 0.5)), id: \.self) { value in
+                                        ForEach(Array(stride(from: 0.0, through: 3.0, by: 0.5)), id: \.self) { value in
                                             Button("\(String(format: "%.1f", value))s") {
                                                 stage.breathInSeconds = value
                                             }
@@ -228,7 +230,7 @@ struct KriyaView: View {
                                     }
                                     .frame(maxWidth: .infinity, alignment: .center)
                                     Menu {
-                                        ForEach(Array(stride(from: 0.5, through: 3.0, by: 0.5)), id: \.self) { value in
+                                        ForEach(Array(stride(from: 0.0, through: 3.0, by: 0.5)), id: \.self) { value in
                                             Button("\(String(format: "%.1f", value))s") {
                                                 stage.breathOutSeconds = value
                                             }
@@ -349,6 +351,11 @@ struct KriyaView: View {
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
             }
+            .alert("Invalid durations", isPresented: $showValidationAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(validationMessage)
+            }
             .onDisappear {
                 stop()
             }
@@ -398,6 +405,13 @@ struct KriyaView: View {
     private func start() {
         guard session.state == .idle else { return }
         guard !stages.isEmpty else { return }
+
+        // Validate at least one of in/out per stage is > 0
+        if stages.contains(where: { $0.breathInSeconds <= 0 && $0.breathOutSeconds <= 0 }) {
+            validationMessage = "at least one of the in and out duration should be more than zero"
+            showValidationAlert = true
+            return
+        }
         
         // Auto-save if user provided a name
         let trimmedName = kriyaName.trimmingCharacters(in: .whitespaces)
