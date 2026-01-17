@@ -713,6 +713,8 @@ struct KriyaView: View {
         stages = kriya.stages
         kriyaBreathInLabel = kriya.kriyaBreathInLabel
         kriyaBreathOutLabel = kriya.kriyaBreathOutLabel
+        selectedInOption = kriyaBreathInLabel
+        selectedOutOption = kriyaBreathOutLabel
         roundCount = kriya.roundCount
         kriyaName = ""
         start()

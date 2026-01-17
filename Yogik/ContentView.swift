@@ -12,15 +12,15 @@ struct ContentView: View {
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            PranayamaView()
+            YogaView()
                 .tabItem {
-                    Label("Pranayama", systemImage: "wind")
+                    Label("Yoga sequence", systemImage: "figure.cooldown")
                 }
                 .tag(0)
 
-            YogaView()
+            PranayamaView()
                 .tabItem {
-                    Label("Yoga Sequences", systemImage: "figure.cooldown")
+                    Label("Pranayama", systemImage: "wind")
                 }
                 .tag(1)
             
