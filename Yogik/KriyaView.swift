@@ -287,8 +287,8 @@ struct KriyaView: View {
                             
                             VStack(spacing: 8) {
                                 ForEach(getSavedKriyas()) { saved in
-                                    Button(action: { loadKriya(saved) }) {
-                                        HStack(spacing: 12) {
+                                    HStack(spacing: 12) {
+                                        Button(action: { loadKriya(saved) }) {
                                             VStack(alignment: .leading, spacing: 4) {
                                                 Text(saved.name)
                                                     .font(.subheadline)
@@ -299,16 +299,16 @@ struct KriyaView: View {
                                                     .foregroundColor(.secondary)
                                             }
                                             Spacer()
-                                            Button(action: { deleteSavedKriya(saved) }) {
-                                                Image(systemName: "trash")
-                                                    .foregroundColor(.red)
-                                            }
                                         }
-                                        .padding(.vertical, 8)
-                                        .padding(.horizontal, 12)
-                                        .background(Color.gray.opacity(0.1))
-                                        .cornerRadius(8)
+                                        Button(action: { deleteSavedKriya(saved) }) {
+                                            Image(systemName: "trash")
+                                                .foregroundColor(.red)
+                                        }
                                     }
+                                    .padding(.vertical, 8)
+                                    .padding(.horizontal, 12)
+                                    .background(Color.gray.opacity(0.1))
+                                    .cornerRadius(8)
                                 }
                             }
                             .padding(.horizontal)
@@ -567,6 +567,8 @@ struct KriyaView: View {
         kriyaBreathOutLabel = kriya.kriyaBreathOutLabel
         repeatCount = kriya.repeatCount
         kriyaName = ""
+        start()
+        showingDial = true
     }
     
     private func deleteSavedKriya(_ kriya: SavedKriya) {
