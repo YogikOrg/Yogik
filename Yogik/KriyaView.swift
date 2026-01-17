@@ -60,6 +60,11 @@ struct KriyaView: View {
     @State private var restPrepPromptSpoken: Bool = false
     @State private var showValidationAlert: Bool = false
     @State private var validationMessage: String = ""
+    @State private var editingCustomLabels: Bool = false
+    @State private var selectedInOption: String = ""
+    @State private var selectedOutOption: String = ""
+    @State private var tempInLabel: String = ""
+    @State private var tempOutLabel: String = ""
 
     private let stageCountOptions: [Int] = {
         var values: [Int] = []
@@ -69,8 +74,8 @@ struct KriyaView: View {
         values.append(contentsOf: stride(from: 550, through: 1000, by: 50))
         return values
     }()
-    private let kriyaBreathInOptions: [String] = ["In", "Inhale", "Breath In"]
-    private let kriyaBreathOutOptions: [String] = ["Out", "Exhale", "Breath out"]
+    private let kriyaBreathInOptions: [String] = ["In", "Inhale", "Breath In", "Custom text"]
+    private let kriyaBreathOutOptions: [String] = ["Out", "Exhale", "Breath out", "Custom text"]
     private var displayKriyaBreathInOptions: [String] {
         var opts = kriyaBreathInOptions
         let current = kriyaBreathInLabel.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -193,22 +198,43 @@ struct KriyaView: View {
                                     HStack {
                                         Text("Breath-in sound")
                                         Spacer()
-                                        Picker("", selection: $kriyaBreathInLabel) {
+                                        Picker("", selection: $selectedInOption) {
                                             ForEach(displayKriyaBreathInOptions, id: \.self) { option in
                                                 Text(option).tag(option)
                                             }
                                         }
                                         .pickerStyle(.menu)
+                                        .onChange(of: selectedInOption) { _, newValue in
+                                            if newValue == "Custom text" {
+                                                // Reset selection to current label and open combined editor
+                                                selectedInOption = kriyaBreathInLabel
+                                                tempInLabel = kriyaBreathInLabel
+                                                tempOutLabel = kriyaBreathOutLabel
+                                                editingCustomLabels = true
+                                            } else {
+                                                kriyaBreathInLabel = newValue
+                                            }
+                                        }
                                     }
                                     HStack {
                                         Text("Breathout sound")
                                         Spacer()
-                                        Picker("", selection: $kriyaBreathOutLabel) {
+                                        Picker("", selection: $selectedOutOption) {
                                             ForEach(displayKriyaBreathOutOptions, id: \.self) { option in
                                                 Text(option).tag(option)
                                             }
                                         }
                                         .pickerStyle(.menu)
+                                        .onChange(of: selectedOutOption) { _, newValue in
+                                            if newValue == "Custom text" {
+                                                selectedOutOption = kriyaBreathOutLabel
+                                                tempInLabel = kriyaBreathInLabel
+                                                tempOutLabel = kriyaBreathOutLabel
+                                                editingCustomLabels = true
+                                            } else {
+                                                kriyaBreathOutLabel = newValue
+                                            }
+                                        }
                                     }
                                 }
                         
@@ -386,6 +412,49 @@ struct KriyaView: View {
                 stop()
             }
         }
+            .onAppear {
+                // Initialize pickers to current labels
+                selectedInOption = kriyaBreathInLabel
+                selectedOutOption = kriyaBreathOutLabel
+            }
+            .sheet(isPresented: $editingCustomLabels) {
+                NavigationView {
+                    Form {
+                        Section(header: Text("Custom Labels")) {
+                            HStack {
+                                Text("Breath-in")
+                                Spacer()
+                                TextField("Enter custom text", text: $tempInLabel)
+                                    .multilineTextAlignment(.trailing)
+                            }
+                            HStack {
+                                Text("Breathout")
+                                Spacer()
+                                TextField("Enter custom text", text: $tempOutLabel)
+                                    .multilineTextAlignment(.trailing)
+                            }
+                        }
+                    }
+                    .navigationTitle("Custom Text")
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") {
+                                editingCustomLabels = false
+                            }
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") {
+                                // Apply both labels and sync picker selections
+                                kriyaBreathInLabel = tempInLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+                                kriyaBreathOutLabel = tempOutLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+                                selectedInOption = kriyaBreathInLabel
+                                selectedOutOption = kriyaBreathOutLabel
+                                editingCustomLabels = false
+                            }
+                        }
+                    }
+                }
+            }
     }
     
     private var progress: Double {
