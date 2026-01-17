@@ -116,7 +116,7 @@ struct KriyaView: View {
                 } else {
                     // Setup UI
                     Form {
-                        Section(header: Text("Save This Kriya")) {
+                        Section {
                                     HStack {
                                         Text("Kriya name")
                                         Spacer()
@@ -125,7 +125,7 @@ struct KriyaView: View {
                                     }
                                 }
                                 
-                                Section(header: Text("Breath Prompts")) {
+                                Section {
                                     HStack {
                                         Text("Breath-in text")
                                         Spacer()
@@ -140,76 +140,77 @@ struct KriyaView: View {
                                     }
                                 }
                         
-                        Section(header: Text("Rounds")) {
-                            ForEach($rounds) { $round in
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("Round \(rounds.firstIndex(where: { $0.id == round.id })! + 1)")
-                                        .font(.subheadline)
+                        Section {
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack(spacing: 0) {
+                                    Text("Round")
+                                        .font(.caption)
                                         .fontWeight(.semibold)
-                                    HStack(spacing: 12) {
-                                        HStack(spacing: 4) {
-                                            Text("in")
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
-                                            Menu {
-                                                ForEach(Array(stride(from: 0.5, through: 3.0, by: 0.5)), id: \.self) { value in
-                                                    Button("\(String(format: "%.1f", value))s") {
-                                                        round.breathInSeconds = value
-                                                    }
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    Text("In time")
+                                        .font(.caption)
+                                        .fontWeight(.semibold)
+                                        .frame(maxWidth: .infinity, alignment: .center)
+                                    Text("Out time")
+                                        .font(.caption)
+                                        .fontWeight(.semibold)
+                                        .frame(maxWidth: .infinity, alignment: .center)
+                                    Text("Count")
+                                        .font(.caption)
+                                        .fontWeight(.semibold)
+                                        .frame(maxWidth: .infinity, alignment: .center)
+                                }
+                                .padding(.bottom, 8)
+                                
+                                ForEach($rounds) { $round in
+                                    HStack(spacing: 0) {
+                                        Text("\(rounds.firstIndex(where: { $0.id == round.id })! + 1)")
+                                            .font(.caption)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                        Menu {
+                                            ForEach(Array(stride(from: 0.5, through: 3.0, by: 0.5)), id: \.self) { value in
+                                                Button("\(String(format: "%.1f", value))s") {
+                                                    round.breathInSeconds = value
                                                 }
-                                            } label: {
-                                                Text(String(format: "%.1f", round.breathInSeconds))
-                                                    .frame(minWidth: 45)
-                                                    .padding(.vertical, 4)
-                                                    .padding(.horizontal, 6)
-                                                    .background(Color.gray.opacity(0.1))
-                                                    .cornerRadius(4)
-                                                    .font(.caption)
                                             }
-                                        }
-                                        
-                                        HStack(spacing: 4) {
-                                            Text("out")
+                                        } label: {
+                                            Text(String(format: "%.1f", round.breathInSeconds))
                                                 .font(.caption)
-                                                .foregroundColor(.secondary)
-                                            Menu {
-                                                ForEach(Array(stride(from: 0.5, through: 3.0, by: 0.5)), id: \.self) { value in
-                                                    Button("\(String(format: "%.1f", value))s") {
-                                                        round.breathOutSeconds = value
-                                                    }
-                                                }
-                                            } label: {
-                                                Text(String(format: "%.1f", round.breathOutSeconds))
-                                                    .frame(minWidth: 45)
-                                                    .padding(.vertical, 4)
-                                                    .padding(.horizontal, 6)
-                                                    .background(Color.gray.opacity(0.1))
-                                                    .cornerRadius(4)
-                                                    .font(.caption)
-                                            }
-                                        }
-                                        
-                                        Spacer()
-                                        
-                                        HStack(spacing: 4) {
-                                            Text("x")
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
-                                            TextField("", value: $round.counts, format: .number)
-                                                .keyboardType(.numberPad)
-                                                .frame(maxWidth: 50)
-                                                .padding(.vertical, 4)
-                                                .padding(.horizontal, 6)
+                                                .padding(.vertical, 6)
+                                                .padding(.horizontal, 8)
                                                 .background(Color.gray.opacity(0.1))
                                                 .cornerRadius(4)
-                                                .multilineTextAlignment(.center)
-                                                .font(.caption)
                                         }
+                                        .frame(maxWidth: .infinity, alignment: .center)
+                                        Menu {
+                                            ForEach(Array(stride(from: 0.5, through: 3.0, by: 0.5)), id: \.self) { value in
+                                                Button("\(String(format: "%.1f", value))s") {
+                                                    round.breathOutSeconds = value
+                                                }
+                                            }
+                                        } label: {
+                                            Text(String(format: "%.1f", round.breathOutSeconds))
+                                                .font(.caption)
+                                                .padding(.vertical, 6)
+                                                .padding(.horizontal, 8)
+                                                .background(Color.gray.opacity(0.1))
+                                                .cornerRadius(4)
+                                        }
+                                        .frame(maxWidth: .infinity, alignment: .center)
+                                        TextField("", value: $round.counts, format: .number)
+                                            .keyboardType(.numberPad)
+                                            .font(.caption)
+                                            .padding(.vertical, 6)
+                                            .padding(.horizontal, 8)
+                                            .background(Color.gray.opacity(0.1))
+                                            .cornerRadius(4)
+                                            .multilineTextAlignment(.center)
+                                            .frame(maxWidth: .infinity, alignment: .center)
                                     }
+                                    .padding(.vertical, 6)
                                 }
-                                .padding(.vertical, 4)
+                                .onDelete(perform: deleteRound)
                             }
-                            .onDelete(perform: deleteRound)
                             
                             Button(action: addRound) {
                                 HStack(spacing: 8) {
@@ -324,13 +325,11 @@ struct KriyaView: View {
     
     private func getVoiceRateForDuration(_ duration: Double) -> Float {
         switch duration {
-        case ..<0.75:
-            return 0.8
-        case 0.75..<1.25:
+        case ..<1.0:
             return 0.5
-        case 1.25..<2.0:
-            return 0.2
-        case 2.0..<3.0:
+        case 1.0..<1.5:
+            return 0.3
+        case 1.5..<3.0:
             return 0.05
         default:
             return 0.05
