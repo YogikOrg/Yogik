@@ -174,17 +174,6 @@ struct KriyaView: View {
                                 }
                         
                         Section {
-                            HStack {
-                                Text("Repetition")
-                                Spacer()
-                                TextField("", value: $repeatCount, format: .number)
-                                    .keyboardType(.numberPad)
-                                    .multilineTextAlignment(.trailing)
-                                    .frame(maxWidth: 60)
-                            }
-                        }
-                        
-                        Section {
                             VStack(alignment: .leading, spacing: 12) {
                                 HStack(spacing: 0) {
                                     Text("Round")
@@ -261,6 +250,17 @@ struct KriyaView: View {
                                     Image(systemName: "plus.circle")
                                     Text("Add Round")
                                 }
+                            }
+                        }
+                        
+                        Section {
+                            HStack {
+                                Text("Repetition")
+                                Spacer()
+                                TextField("", value: $repeatCount, format: .number)
+                                    .keyboardType(.numberPad)
+                                    .multilineTextAlignment(.trailing)
+                                    .frame(maxWidth: 60)
                             }
                         }
                         
