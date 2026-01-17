@@ -194,56 +194,56 @@ struct KriyaView: View {
                                         .frame(maxWidth: .infinity, alignment: .center)
                                 }
                                 .padding(.bottom, 8)
-                                
-                                ForEach($rounds) { $round in
-                                    HStack(spacing: 0) {
-                                        Text("\(rounds.firstIndex(where: { $0.id == round.id })! + 1)")
-                                            .font(.caption)
-                                            .frame(maxWidth: .infinity, alignment: .leading)
-                                        Menu {
-                                            ForEach(Array(stride(from: 0.5, through: 3.0, by: 0.5)), id: \.self) { value in
-                                                Button("\(String(format: "%.1f", value))s") {
-                                                    round.breathInSeconds = value
-                                                }
+                            }
+                            
+                            ForEach($rounds) { $round in
+                                HStack(spacing: 0) {
+                                    Text("\(rounds.firstIndex(where: { $0.id == round.id })! + 1)")
+                                        .font(.caption)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    Menu {
+                                        ForEach(Array(stride(from: 0.5, through: 3.0, by: 0.5)), id: \.self) { value in
+                                            Button("\(String(format: "%.1f", value))s") {
+                                                round.breathInSeconds = value
                                             }
-                                        } label: {
-                                            Text(String(format: "%.1f", round.breathInSeconds))
-                                                .font(.caption)
-                                                .padding(.vertical, 6)
-                                                .padding(.horizontal, 8)
-                                                .background(Color.gray.opacity(0.1))
-                                                .cornerRadius(4)
                                         }
-                                        .frame(maxWidth: .infinity, alignment: .center)
-                                        Menu {
-                                            ForEach(Array(stride(from: 0.5, through: 3.0, by: 0.5)), id: \.self) { value in
-                                                Button("\(String(format: "%.1f", value))s") {
-                                                    round.breathOutSeconds = value
-                                                }
-                                            }
-                                        } label: {
-                                            Text(String(format: "%.1f", round.breathOutSeconds))
-                                                .font(.caption)
-                                                .padding(.vertical, 6)
-                                                .padding(.horizontal, 8)
-                                                .background(Color.gray.opacity(0.1))
-                                                .cornerRadius(4)
-                                        }
-                                        .frame(maxWidth: .infinity, alignment: .center)
-                                        TextField("", value: $round.counts, format: .number)
-                                            .keyboardType(.numberPad)
+                                    } label: {
+                                        Text(String(format: "%.1f", round.breathInSeconds))
                                             .font(.caption)
                                             .padding(.vertical, 6)
                                             .padding(.horizontal, 8)
                                             .background(Color.gray.opacity(0.1))
                                             .cornerRadius(4)
-                                            .multilineTextAlignment(.center)
-                                            .frame(maxWidth: .infinity, alignment: .center)
                                     }
-                                    .padding(.vertical, 6)
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                                    Menu {
+                                        ForEach(Array(stride(from: 0.5, through: 3.0, by: 0.5)), id: \.self) { value in
+                                            Button("\(String(format: "%.1f", value))s") {
+                                                round.breathOutSeconds = value
+                                            }
+                                        }
+                                    } label: {
+                                        Text(String(format: "%.1f", round.breathOutSeconds))
+                                            .font(.caption)
+                                            .padding(.vertical, 6)
+                                            .padding(.horizontal, 8)
+                                            .background(Color.gray.opacity(0.1))
+                                            .cornerRadius(4)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                                    TextField("", value: $round.counts, format: .number)
+                                        .keyboardType(.numberPad)
+                                        .font(.caption)
+                                        .padding(.vertical, 6)
+                                        .padding(.horizontal, 8)
+                                        .background(Color.gray.opacity(0.1))
+                                        .cornerRadius(4)
+                                        .multilineTextAlignment(.center)
+                                        .frame(maxWidth: .infinity, alignment: .center)
                                 }
-                                .onDelete(perform: deleteRound)
+                                .padding(.vertical, 6)
                             }
+                            .onDelete(perform: deleteRound)
                             
                             Button(action: addRound) {
                                 HStack(spacing: 8) {
