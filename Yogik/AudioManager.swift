@@ -44,7 +44,8 @@ class AudioManager {
     
     func speak(message: String, voiceID: String, rate: Float = AVSpeechUtteranceDefaultSpeechRate) {
         let utterance = AVSpeechUtterance(string: message)
-        utterance.rate = rate
+        // Clamp rate to AVSpeechUtterance valid range
+        utterance.rate = max(AVSpeechUtteranceMinimumSpeechRate, min(rate, AVSpeechUtteranceMaximumSpeechRate))
         
         if let voice = AVSpeechSynthesisVoice(identifier: voiceID) {
             utterance.voice = voice

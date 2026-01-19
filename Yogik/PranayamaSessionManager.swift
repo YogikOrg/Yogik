@@ -21,6 +21,7 @@ class PranayamaSessionManager: ObservableObject {
     
     private var timer: Timer?
     private var tickHandler: ((Double) -> Void)?
+    private var timerInterval: Double = 0.1
     
     var isRunning: Bool {
         state == .active && !isPaused
@@ -29,6 +30,17 @@ class PranayamaSessionManager: ObservableObject {
     func start(tickHandler: @escaping (Double) -> Void) {
         guard state == .idle else { return }
         
+        self.tickHandler = tickHandler
+        state = .active
+        isPaused = false
+        startTimer()
+    }
+    
+    // Overload allowing a configurable tick interval
+    func start(tickInterval: Double, tickHandler: @escaping (Double) -> Void) {
+        guard state == .idle else { return }
+        
+        self.timerInterval = max(0.01, tickInterval)
         self.tickHandler = tickHandler
         state = .active
         isPaused = false
@@ -57,8 +69,9 @@ class PranayamaSessionManager: ObservableObject {
     }
     
     private func startTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            self?.tickHandler?(0.1)
+        timer = Timer.scheduledTimer(withTimeInterval: timerInterval, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            self.tickHandler?(self.timerInterval)
         }
         RunLoop.main.add(timer!, forMode: .common)
     }

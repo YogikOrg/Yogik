@@ -74,6 +74,11 @@ struct KriyaView: View {
         values.append(contentsOf: stride(from: 550, through: 1000, by: 50))
         return values
     }()
+    private let kriyaTimeOptions: [Double] = {
+        var values: [Double] = [0.0, 0.25]
+        values.append(contentsOf: stride(from: 0.5, through: 4.0, by: 0.25))
+        return values
+    }()
     private let kriyaBreathInOptions: [String] = ["In", "Inhale", "Breath In", "Custom text"]
     private let kriyaBreathOutOptions: [String] = ["Out", "Exhale", "Breath out", "Custom text"]
     private var displayKriyaBreathInOptions: [String] {
@@ -267,13 +272,13 @@ struct KriyaView: View {
                                         .font(.caption)
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                     Menu {
-                                        ForEach(Array(stride(from: 0.0, through: 3.0, by: 0.5)), id: \.self) { value in
-                                            Button("\(String(format: "%.1f", value))s") {
+                                        ForEach(kriyaTimeOptions, id: \.self) { value in
+                                            Button("\(String(format: "%.2f", value))s") {
                                                 stage.breathInSeconds = value
                                             }
                                         }
                                     } label: {
-                                        Text(String(format: "%.1f", stage.breathInSeconds))
+                                        Text(String(format: "%.2f", stage.breathInSeconds))
                                             .font(.caption)
                                             .padding(.vertical, 6)
                                             .padding(.horizontal, 8)
@@ -282,13 +287,13 @@ struct KriyaView: View {
                                     }
                                     .frame(maxWidth: .infinity, alignment: .center)
                                     Menu {
-                                        ForEach(Array(stride(from: 0.0, through: 3.0, by: 0.5)), id: \.self) { value in
-                                            Button("\(String(format: "%.1f", value))s") {
+                                        ForEach(kriyaTimeOptions, id: \.self) { value in
+                                            Button("\(String(format: "%.2f", value))s") {
                                                 stage.breathOutSeconds = value
                                             }
                                         }
                                     } label: {
-                                        Text(String(format: "%.1f", stage.breathOutSeconds))
+                                        Text(String(format: "%.2f", stage.breathOutSeconds))
                                             .font(.caption)
                                             .padding(.vertical, 6)
                                             .padding(.horizontal, 8)
@@ -325,7 +330,7 @@ struct KriyaView: View {
                         }
                         
                         Section {
-                            Picker("Round", selection: $roundCount) {
+                            Picker("Rounds", selection: $roundCount) {
                                 ForEach(1...10, id: \.self) { value in
                                     Text("\(value)").tag(value)
                                 }
@@ -485,16 +490,28 @@ struct KriyaView: View {
     }
     
     private func getVoiceRateForDuration(_ duration: Double) -> Float {
-        switch duration {
-        case ..<1.0:
-            return 0.5
-        case 1.0..<1.5:
-            return 0.3
-        case 1.5..<3.0:
-            return 0.05
-        default:
-            return 0.05
-        }
+        // Map to iOS valid range: 0.25s->0.8 (fast), 1.0s->0.1, 2.0s+->0.0 (slowest)
+        let rateMap: [Double: Float] = [
+            0.0: 0.0,
+            0.25: 0.8,
+            0.5: 0.55,
+            0.75: 0.30,
+            1.0: 0.1,
+            1.25: 0.07,
+            1.5: 0.04,
+            1.75: 0.02,
+            2.0: 0.0,
+            2.25: 0.0,
+            2.5: 0.0,
+            2.75: 0.0,
+            3.0: 0.0,
+            3.25: 0.0,
+            3.5: 0.0,
+            3.75: 0.0,
+            4.0: 0.0
+        ]
+        
+        return rateMap[duration] ?? 0.0
     }
     
     private func start() {
@@ -529,8 +546,8 @@ struct KriyaView: View {
             self.inPrepPhase = false
             self.playCurrentStage()
             
-            // Start session with 0.1s tick interval
-            self.session.start { timeInterval in
+            // Start session with a finer tick interval for accurate short durations (e.g., 0.25s)
+            self.session.start(tickInterval: 0.05) { timeInterval in
                 self.tick(timeInterval: timeInterval)
             }
         }
@@ -585,7 +602,8 @@ struct KriyaView: View {
             }
         }
         
-        if elapsedFractional >= currentPhaseDuration {
+        // Use a small epsilon to account for floating-point rounding (e.g., 0.25s)
+        if elapsedFractional + 0.00001 >= currentPhaseDuration {
             // Phase complete, move to next
             switch phase {
             case .breathIn:
@@ -642,6 +660,8 @@ struct KriyaView: View {
             phase = .idle
             session.pause()
             showingEndPrompt = true
+            // Cancel any queued in/out prompts before speaking the end prompt
+            AudioManager.shared.stopSpeaking()
             AudioManager.shared.speak(message: "Relax, take few long and deep breaths", voiceID: selectedVoiceID, rate: 0.5)
         }
     }
