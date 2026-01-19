@@ -83,6 +83,18 @@ struct KriyaView: View {
     private let kriyaBreathOutOptions: [String] = ["Out", "Exhale", "Breath out", "Custom text"]
     private var displayKriyaBreathInOptions: [String] {
         var opts = kriyaBreathInOptions
+        
+        // Add all unique custom labels from saved Kriyas
+        let savedKriyas = getSavedKriyas()
+        let customLabels = savedKriyas
+            .map { $0.kriyaBreathInLabel.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && !opts.contains($0) }
+        
+        for label in Set(customLabels).sorted() {
+            opts.insert(label, at: opts.count - 1) // Insert before "Custom text"
+        }
+        
+        // Always include current label if not already present
         let current = kriyaBreathInLabel.trimmingCharacters(in: .whitespacesAndNewlines)
         if !current.isEmpty && !opts.contains(current) {
             opts.insert(current, at: 0)
@@ -91,11 +103,33 @@ struct KriyaView: View {
     }
     private var displayKriyaBreathOutOptions: [String] {
         var opts = kriyaBreathOutOptions
+        
+        // Add all unique custom labels from saved Kriyas
+        let savedKriyas = getSavedKriyas()
+        let customLabels = savedKriyas
+            .map { $0.kriyaBreathOutLabel.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && !opts.contains($0) }
+        
+        for label in Set(customLabels).sorted() {
+            opts.insert(label, at: opts.count - 1) // Insert before "Custom text"
+        }
+        
+        // Always include current label if not already present
         let current = kriyaBreathOutLabel.trimmingCharacters(in: .whitespacesAndNewlines)
         if !current.isEmpty && !opts.contains(current) {
             opts.insert(current, at: 0)
         }
         return opts
+    }
+    
+    private func formatTime(_ seconds: Double) -> String {
+        if seconds == 0 {
+            return "0"
+        }
+        let formatted = String(format: "%.2f", seconds)
+        // Remove trailing zeros and decimal point if needed
+        let trimmed = formatted.replacingOccurrences(of: #"\\.(\\d*?)0+$"#, with: ".$1", options: .regularExpression)
+        return trimmed.hasSuffix(".") ? String(trimmed.dropLast()) : trimmed
     }
     
     @AppStorage("selectedVoiceID") private var selectedVoiceID: String = ""
@@ -273,12 +307,12 @@ struct KriyaView: View {
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                     Menu {
                                         ForEach(kriyaTimeOptions, id: \.self) { value in
-                                            Button("\(String(format: "%.2f", value))s") {
+                                            Button("\(formatTime(value))s") {
                                                 stage.breathInSeconds = value
                                             }
                                         }
                                     } label: {
-                                        Text(String(format: "%.2f", stage.breathInSeconds))
+                                        Text(formatTime(stage.breathInSeconds))
                                             .font(.caption)
                                             .padding(.vertical, 6)
                                             .padding(.horizontal, 8)
@@ -288,12 +322,12 @@ struct KriyaView: View {
                                     .frame(maxWidth: .infinity, alignment: .center)
                                     Menu {
                                         ForEach(kriyaTimeOptions, id: \.self) { value in
-                                            Button("\(String(format: "%.2f", value))s") {
+                                            Button("\(formatTime(value))s") {
                                                 stage.breathOutSeconds = value
                                             }
                                         }
                                     } label: {
-                                        Text(String(format: "%.2f", stage.breathOutSeconds))
+                                        Text(formatTime(stage.breathOutSeconds))
                                             .font(.caption)
                                             .padding(.vertical, 6)
                                             .padding(.horizontal, 8)
