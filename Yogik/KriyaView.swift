@@ -61,8 +61,7 @@ struct KriyaView: View {
     @State private var showValidationAlert: Bool = false
     @State private var validationMessage: String = ""
     @State private var editingCustomLabels: Bool = false
-    @State private var selectedInOption: String = ""
-    @State private var selectedOutOption: String = ""
+    @State private var selectedCombinedOption: String = ""
     @State private var tempInLabel: String = ""
     @State private var tempOutLabel: String = ""
 
@@ -79,45 +78,38 @@ struct KriyaView: View {
         values.append(contentsOf: stride(from: 0.5, through: 4.0, by: 0.25))
         return values
     }()
-    private let kriyaBreathInOptions: [String] = ["In", "Inhale", "Breath In", "Custom text"]
-    private let kriyaBreathOutOptions: [String] = ["Out", "Exhale", "Breath out", "Custom text"]
-    private var displayKriyaBreathInOptions: [String] {
-        var opts = kriyaBreathInOptions
+    private let kriyaBreathCombinedOptions: [String] = [
+        "In, Out",
+        "Inhale, Exhale",
+        "Breath In, Breath out",
+        "Custom text"
+    ]
+    
+    private var displayKriyaBreathCombinedOptions: [String] {
+        var opts = kriyaBreathCombinedOptions
         
-        // Add all unique custom labels from saved Kriyas
+        // Add all unique custom label combinations from saved Kriyas
         let savedKriyas = getSavedKriyas()
-        let customLabels = savedKriyas
-            .map { $0.kriyaBreathInLabel.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty && !opts.contains($0) }
+        let customCombinations = savedKriyas
+            .map { 
+                let inLabel = $0.kriyaBreathInLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+                let outLabel = $0.kriyaBreathOutLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+                return "\(inLabel), \(outLabel)"
+            }
+            .filter { combination in
+                !combination.isEmpty && !opts.contains(combination)
+            }
         
-        for label in Set(customLabels).sorted() {
-            opts.insert(label, at: opts.count - 1) // Insert before "Custom text"
+        for combination in Set(customCombinations).sorted() {
+            opts.insert(combination, at: opts.count - 1) // Insert before "Custom text"
         }
         
-        // Always include current label if not already present
-        let current = kriyaBreathInLabel.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !current.isEmpty && !opts.contains(current) {
-            opts.insert(current, at: 0)
-        }
-        return opts
-    }
-    private var displayKriyaBreathOutOptions: [String] {
-        var opts = kriyaBreathOutOptions
-        
-        // Add all unique custom labels from saved Kriyas
-        let savedKriyas = getSavedKriyas()
-        let customLabels = savedKriyas
-            .map { $0.kriyaBreathOutLabel.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty && !opts.contains($0) }
-        
-        for label in Set(customLabels).sorted() {
-            opts.insert(label, at: opts.count - 1) // Insert before "Custom text"
-        }
-        
-        // Always include current label if not already present
-        let current = kriyaBreathOutLabel.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !current.isEmpty && !opts.contains(current) {
-            opts.insert(current, at: 0)
+        // Always include current combination if not already present
+        let currentIn = kriyaBreathInLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        let currentOut = kriyaBreathOutLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        let currentCombination = "\(currentIn), \(currentOut)"
+        if !currentIn.isEmpty && !currentOut.isEmpty && !opts.contains(currentCombination) {
+            opts.insert(currentCombination, at: 0)
         }
         return opts
     }
@@ -235,43 +227,30 @@ struct KriyaView: View {
                                 
                                 Section {
                                     HStack {
-                                        Text("Breath-in sound")
+                                        Text("Breath sound")
                                         Spacer()
-                                        Picker("", selection: $selectedInOption) {
-                                            ForEach(displayKriyaBreathInOptions, id: \.self) { option in
+                                        Picker("", selection: $selectedCombinedOption) {
+                                            ForEach(displayKriyaBreathCombinedOptions, id: \.self) { option in
                                                 Text(option).tag(option)
                                             }
                                         }
                                         .pickerStyle(.menu)
-                                        .onChange(of: selectedInOption) { _, newValue in
+                                        .onChange(of: selectedCombinedOption) { _, newValue in
                                             if newValue == "Custom text" {
-                                                // Reset selection to current label and open combined editor
-                                                selectedInOption = kriyaBreathInLabel
+                                                // Reset selection to current combination and open editor
+                                                let currentIn = kriyaBreathInLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+                                                let currentOut = kriyaBreathOutLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+                                                selectedCombinedOption = "\(currentIn), \(currentOut)"
                                                 tempInLabel = kriyaBreathInLabel
                                                 tempOutLabel = kriyaBreathOutLabel
                                                 editingCustomLabels = true
                                             } else {
-                                                kriyaBreathInLabel = newValue
-                                            }
-                                        }
-                                    }
-                                    HStack {
-                                        Text("Breathout sound")
-                                        Spacer()
-                                        Picker("", selection: $selectedOutOption) {
-                                            ForEach(displayKriyaBreathOutOptions, id: \.self) { option in
-                                                Text(option).tag(option)
-                                            }
-                                        }
-                                        .pickerStyle(.menu)
-                                        .onChange(of: selectedOutOption) { _, newValue in
-                                            if newValue == "Custom text" {
-                                                selectedOutOption = kriyaBreathOutLabel
-                                                tempInLabel = kriyaBreathInLabel
-                                                tempOutLabel = kriyaBreathOutLabel
-                                                editingCustomLabels = true
-                                            } else {
-                                                kriyaBreathOutLabel = newValue
+                                                // Parse comma-separated values
+                                                let components = newValue.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                                                if components.count == 2 {
+                                                    kriyaBreathInLabel = components[0]
+                                                    kriyaBreathOutLabel = components[1]
+                                                }
                                             }
                                         }
                                     }
@@ -452,9 +431,10 @@ struct KriyaView: View {
             }
         }
             .onAppear {
-                // Initialize pickers to current labels
-                selectedInOption = kriyaBreathInLabel
-                selectedOutOption = kriyaBreathOutLabel
+                // Initialize picker to current combination
+                let currentIn = kriyaBreathInLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+                let currentOut = kriyaBreathOutLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+                selectedCombinedOption = "\(currentIn), \(currentOut)"
             }
             .sheet(isPresented: $editingCustomLabels) {
                 NavigationView {
@@ -483,11 +463,10 @@ struct KriyaView: View {
                         }
                         ToolbarItem(placement: .confirmationAction) {
                             Button("Done") {
-                                // Apply both labels and sync picker selections
+                                // Apply both labels and sync picker selection
                                 kriyaBreathInLabel = tempInLabel.trimmingCharacters(in: .whitespacesAndNewlines)
                                 kriyaBreathOutLabel = tempOutLabel.trimmingCharacters(in: .whitespacesAndNewlines)
-                                selectedInOption = kriyaBreathInLabel
-                                selectedOutOption = kriyaBreathOutLabel
+                                selectedCombinedOption = "\(kriyaBreathInLabel), \(kriyaBreathOutLabel)"
                                 editingCustomLabels = false
                             }
                         }
@@ -767,8 +746,7 @@ struct KriyaView: View {
         stages = kriya.stages
         kriyaBreathInLabel = kriya.kriyaBreathInLabel
         kriyaBreathOutLabel = kriya.kriyaBreathOutLabel
-        selectedInOption = kriyaBreathInLabel
-        selectedOutOption = kriyaBreathOutLabel
+        selectedCombinedOption = "\(kriyaBreathInLabel), \(kriyaBreathOutLabel)"
         roundCount = kriya.roundCount
         kriyaName = ""
         start()
