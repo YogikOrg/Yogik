@@ -161,24 +161,48 @@ struct KriyaView: View {
                         .padding(.horizontal, 30)
                     } else {
                         // Dial UI
-                        ZStack {
-                            Circle()
-                                .stroke(Color.gray.opacity(0.2), lineWidth: 20)
-                                .frame(width: 220, height: 220)
+                        VStack(spacing: 16) {
+                            ZStack {
+                                Circle()
+                                    .stroke(Color.gray.opacity(0.2), lineWidth: 20)
+                                    .frame(width: 220, height: 220)
+                                
+                                Circle()
+                                    .trim(from: 0, to: CGFloat(progress))
+                                    .stroke(phaseColor, style: StrokeStyle(lineWidth: 20, lineCap: .round))
+                                    .rotationEffect(.degrees(-90))
+                                    .frame(width: 220, height: 220)
+                                    .animation(.easeInOut(duration: 0.2), value: progress)
+                                
+                                VStack(spacing: 8) {
+                                    Text(phaseText)
+                                        .font(.headline)
+                                        .foregroundColor(phaseColor)
+                                    
+                                    if phase != .rest {
+                                        // Show count within current stage
+                                        Text("\(currentStageCount) / \(stages[currentStageIndex].counts)")
+                                            .font(.system(size: 36, weight: .bold, design: .monospaced))
+                                        
+                                        // Show stage number only if multiple stages
+                                        if stages.count > 1 {
+                                            Text("Stage \(currentStageIndex + 1) / \(stages.count)")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    } else {
+                                        // During rest, show rest countdown
+                                        Text("\(elapsed)")
+                                            .font(.system(size: 48, weight: .bold, design: .monospaced))
+                                    }
+                                }
+                            }
                             
-                            Circle()
-                                .trim(from: 0, to: CGFloat(progress))
-                                .stroke(phaseColor, style: StrokeStyle(lineWidth: 20, lineCap: .round))
-                                .rotationEffect(.degrees(-90))
-                                .frame(width: 220, height: 220)
-                                .animation(.easeInOut(duration: 0.2), value: progress)
-                            
-                            VStack {
-                                Text(phaseText)
-                                    .font(.headline)
-                                    .foregroundColor(phaseColor)
-                                Text("\(elapsed)")
-                                    .font(.system(size: 48, weight: .bold, design: .monospaced))
+                            // Show round info below dial only if multiple rounds
+                            if roundCount > 1 {
+                                Text("Round \(roundCount - remainingRounds) / \(roundCount)")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
                             }
                         }
                         .padding(.top, 12)
