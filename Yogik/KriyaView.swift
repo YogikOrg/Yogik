@@ -503,10 +503,10 @@ struct KriyaView: View {
     }
     
     private func getVoiceRateForDuration(_ duration: Double) -> Float {
-        // Map to iOS valid range: 0.25s->0.8 (fast), 1.0s->0.1, 2.0s+->0.0 (slowest)
+        // Map to iOS valid range: 0.25s->0.85 (fast), 1.0s->0.1, 2.0s+->0.0 (slowest)
         let rateMap: [Double: Float] = [
             0.0: 0.0,
-            0.25: 0.8,
+            0.25: 0.85,
             0.5: 0.55,
             0.75: 0.30,
             1.0: 0.1,
