@@ -29,6 +29,12 @@ struct ContentView: View {
                     Label("Kriya", systemImage: "flame")
                 }
                 .tag(2)
+            
+            CustomSequenceView()
+                .tabItem {
+                    Label("Custom", systemImage: "list.bullet.clipboard")
+                }
+                .tag(3)
         }
     }
 }
