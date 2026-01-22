@@ -7,6 +7,11 @@
 
 import SwiftUI
 import AVFoundation
+import UniformTypeIdentifiers
+
+extension UTType {
+    static let yogikseq = UTType(filenameExtension: "yogikseq") ?? .data
+}
 
 struct CustomSequenceView: View {
     struct Pose: Identifiable, Codable {
@@ -39,6 +44,11 @@ struct CustomSequenceView: View {
         }
     }
     
+    struct ExportedSequence: Codable {
+        let version: Int = 1
+        let sequence: SavedSequence
+    }
+    
     @State private var poses: [Pose] = [Pose()]
     @State private var sequenceName: String = ""
     @State private var currentPoseIndex: Int = 0
@@ -51,6 +61,10 @@ struct CustomSequenceView: View {
     @State private var prepWorkItem: DispatchWorkItem?
     @State private var showingSettings: Bool = false
     @State private var expandedPoseId: UUID?
+    @State private var showingFileImporter: Bool = false
+    @State private var selectedSequenceForExport: SavedSequence?
+    @State private var showingShareSheet: Bool = false
+    @State private var savedSequences: [SavedSequence] = []
     
     @AppStorage("selectedVoiceID") private var selectedVoiceID: String = ""
     @AppStorage("prepTimeSeconds") private var prepTimeSeconds: Int = 5
@@ -271,22 +285,54 @@ struct CustomSequenceView: View {
                             .disabled(sequenceName.trimmingCharacters(in: .whitespaces).isEmpty || poses.isEmpty || poses.allSatisfy { $0.name.isEmpty })
                         }
                         
-                        if !getSavedSequences().isEmpty {
+                        if !savedSequences.isEmpty {
                             Section(header: Text("Saved Sequences")) {
-                                ForEach(getSavedSequences()) { saved in
-                                    Button(action: { loadSequence(saved) }) {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(saved.name)
-                                                .font(.subheadline)
-                                                .fontWeight(.semibold)
-                                                .foregroundColor(.primary)
-                                            Text("\(saved.poses.count) pose\(saved.poses.count == 1 ? "" : "s")")
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
+                                ForEach(savedSequences, id: \.id) { saved in
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        HStack {
+                                            Button(action: { loadSequence(saved) }) {
+                                                VStack(alignment: .leading, spacing: 4) {
+                                                    Text(saved.name)
+                                                        .font(.subheadline)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundColor(.primary)
+                                                    Text("\(saved.poses.count) pose\(saved.poses.count == 1 ? "" : "s")")
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                }
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                            }
+                                            
+                                            Button(action: { exportSequence(saved) }) {
+                                                Image(systemName: "square.and.arrow.up")
+                                                    .font(.body)
+                                            }
+                                            .buttonStyle(.bordered)
+                                            
+                                            Button(action: { 
+                                                deleteSavedSequenceByID(saved.id)
+                                                savedSequences.removeAll { $0.id == saved.id }
+                                            }) {
+                                                Image(systemName: "trash")
+                                                    .font(.body)
+                                            }
+                                            .buttonStyle(.bordered)
+                                            .tint(.red)
                                         }
                                     }
+                                    .padding(.vertical, 4)
                                 }
-                                .onDelete(perform: deleteSavedSequence)
+                            }
+                            
+                            Section {
+                                Button(action: { showingFileImporter = true }) {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "square.and.arrow.down")
+                                        Text("Import Sequence")
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(.bordered)
                             }
                         }
                     }
@@ -309,6 +355,9 @@ struct CustomSequenceView: View {
                 }
             }
             .onAppear {
+                // Load saved sequences from UserDefaults
+                savedSequences = getSavedSequences()
+                
                 // Expand first pose by default if there's only one pose
                 if poses.count == 1, let firstPose = poses.first {
                     expandedPoseId = firstPose.id
@@ -320,6 +369,13 @@ struct CustomSequenceView: View {
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
             }
+            .fileImporter(
+                isPresented: $showingFileImporter,
+                allowedContentTypes: [.yogikseq, .json],
+                onCompletion: { result in
+                    handleFileImport(result)
+                }
+            )
         }
     }
     
@@ -500,6 +556,7 @@ struct CustomSequenceView: View {
         let encoder = JSONEncoder()
         if let encoded = try? encoder.encode(allSequences) {
             UserDefaults.standard.set(encoded, forKey: "savedCustomSequences")
+            savedSequences = allSequences
             sequenceName = ""
         }
     }
@@ -518,6 +575,84 @@ struct CustomSequenceView: View {
         let encoder = JSONEncoder()
         if let encoded = try? encoder.encode(allSequences) {
             UserDefaults.standard.set(encoded, forKey: "savedCustomSequences")
+        }
+    }
+    
+    private func deleteSavedSequenceByID(_ id: UUID) {
+        var allSequences = getSavedSequences()
+        allSequences.removeAll { $0.id == id }
+        
+        let encoder = JSONEncoder()
+        if let encoded = try? encoder.encode(allSequences) {
+            UserDefaults.standard.set(encoded, forKey: "savedCustomSequences")
+        }
+    }
+    
+    private func exportSequence(_ sequence: SavedSequence) {
+        let exported = ExportedSequence(sequence: sequence)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        
+        guard let jsonData = try? encoder.encode(exported) else { return }
+        guard let jsonString = String(data: jsonData, encoding: .utf8) else { return }
+        
+        // Save to temporary file
+        let fileName = "\(sequence.name.replacingOccurrences(of: " ", with: "_")).yogikseq"
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+        
+        do {
+            try jsonString.write(to: tempURL, atomically: true, encoding: .utf8)
+            
+            // Present share sheet
+            let shareVC = UIActivityViewController(activityItems: [tempURL], applicationActivities: nil)
+            UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .first?
+                .windows
+                .first?
+                .rootViewController?
+                .present(shareVC, animated: true)
+        } catch {
+            // Handle error silently
+        }
+    }
+    
+    private func handleFileImport(_ result: Result<URL, Error>) {
+        switch result {
+        case .success(let url):
+            // Start accessing the security-scoped resource
+            guard url.startAccessingSecurityScopedResource() else {
+                return
+            }
+            
+            defer {
+                url.stopAccessingSecurityScopedResource()
+            }
+            
+            do {
+                // Read the file
+                let data = try Data(contentsOf: url)
+                
+                // Decode the exported sequence
+                let decoder = JSONDecoder()
+                let exported = try decoder.decode(ExportedSequence.self, from: data)
+                
+                // Add to saved sequences
+                var allSequences = getSavedSequences()
+                allSequences.append(exported.sequence)
+                
+                let encoder = JSONEncoder()
+                if let encoded = try? encoder.encode(allSequences) {
+                    UserDefaults.standard.set(encoded, forKey: "savedCustomSequences")
+                    savedSequences = allSequences
+                }
+            } catch {
+                // Handle error silently
+                print("Import error: \(error)")
+            }
+        case .failure(let error):
+            // Handle error
+            print("File picker error: \(error)")
         }
     }
 }
