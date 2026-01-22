@@ -22,7 +22,7 @@ struct CustomSequenceView: View {
         var holdTime: Int
         var holdPrompt: String
         
-        init(id: UUID = UUID(), name: String = "", transitionTime: Int = 5, instruction: String = "", holdTime: Int = 30, holdPrompt: String = "") {
+        init(id: UUID = UUID(), name: String = "", transitionTime: Int = 5, instruction: String = "", holdTime: Int = 10, holdPrompt: String = "") {
             self.id = id
             self.name = name
             self.transitionTime = transitionTime
@@ -65,6 +65,10 @@ struct CustomSequenceView: View {
     @State private var selectedSequenceForExport: SavedSequence?
     @State private var showingShareSheet: Bool = false
     @State private var savedSequences: [SavedSequence] = []
+    @State private var showingRoundsPrompt: Bool = false
+    @State private var roundsInput: String = "1"
+    @State private var totalRounds: Int = 1
+    @State private var currentRound: Int = 1
     
     @AppStorage("selectedVoiceID") private var selectedVoiceID: String = ""
     @AppStorage("prepTimeSeconds") private var prepTimeSeconds: Int = 5
@@ -200,57 +204,83 @@ struct CustomSequenceView: View {
                                         }
                                     )
                                 ) {
-                                    VStack(spacing: 12) {
-                                        TextField("Pose name", text: $poses[index].name)
-                                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                                        
-                                        HStack {
-                                            Text("Transition time")
-                                            Spacer()
-                                            Picker("", selection: $poses[index].transitionTime) {
-                                                ForEach(transitionTimeOptions, id: \.self) { value in
-                                                    Text("\(value)s").tag(value)
-                                                }
-                                            }
-                                            .pickerStyle(.menu)
+                                    VStack(spacing: 14) {
+                                        // Pose name
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            Text("Pose name")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                            TextField("e.g., Mountain Pose", text: $poses[index].name)
+                                                .padding(10)
+                                                .background(Color(.systemGray6))
+                                                .cornerRadius(10)
                                         }
                                         
-                                        VStack(alignment: .leading, spacing: 4) {
+                                        // Transition and hold times side by side
+                                        HStack(spacing: 12) {
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                Text("Transition")
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                                Picker("", selection: $poses[index].transitionTime) {
+                                                    ForEach(transitionTimeOptions, id: \.self) { value in
+                                                        Text("\(value)s").tag(value)
+                                                    }
+                                                }
+                                                .pickerStyle(.menu)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .padding(8)
+                                                .background(Color(.systemGray6))
+                                                .cornerRadius(8)
+                                            }
+                                            
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                Text("Hold")
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                                Picker("", selection: $poses[index].holdTime) {
+                                                    ForEach(holdTimeOptions, id: \.self) { value in
+                                                        Text("\(value)s").tag(value)
+                                                    }
+                                                }
+                                                .pickerStyle(.menu)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .padding(8)
+                                                .background(Color(.systemGray6))
+                                                .cornerRadius(8)
+                                            }
+                                        }
+                                        
+                                        // Instruction
+                                        VStack(alignment: .leading, spacing: 6) {
                                             Text("Instruction")
                                                 .font(.caption)
                                                 .foregroundColor(.secondary)
                                             TextEditor(text: $poses[index].instruction)
-                                                .frame(height: 60)
-                                                .overlay(
-                                                    RoundedRectangle(cornerRadius: 8)
-                                                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                                                )
+                                                .frame(height: 70)
+                                                .padding(6)
+                                                .background(Color(.systemGray6))
+                                                .cornerRadius(10)
                                         }
                                         
-                                        HStack {
-                                            Text("Hold time")
-                                            Spacer()
-                                            Picker("", selection: $poses[index].holdTime) {
-                                                ForEach(holdTimeOptions, id: \.self) { value in
-                                                    Text("\(value)s").tag(value)
-                                                }
-                                            }
-                                            .pickerStyle(.menu)
-                                        }
-                                        
-                                        VStack(alignment: .leading, spacing: 4) {
+                                        // Hold prompt
+                                        VStack(alignment: .leading, spacing: 6) {
                                             Text("Hold prompt")
                                                 .font(.caption)
                                                 .foregroundColor(.secondary)
                                             TextEditor(text: $poses[index].holdPrompt)
-                                                .frame(height: 60)
-                                                .overlay(
-                                                    RoundedRectangle(cornerRadius: 8)
-                                                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                                                )
+                                                .frame(height: 70)
+                                                .padding(6)
+                                                .background(Color(.systemGray6))
+                                                .cornerRadius(10)
                                         }
                                     }
-                                    .padding(.vertical, 8)
+                                    .padding(.vertical, 10)
+                                    .padding(.horizontal, 12)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(Color(.systemGray6).opacity(0.5))
+                                    )
                                 } label: {
                                     HStack {
                                         Text(pose.name.isEmpty ? "Pose \(index + 1)" : "\(index + 1): \(pose.name)")
@@ -369,6 +399,32 @@ struct CustomSequenceView: View {
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
             }
+            .sheet(isPresented: $showingRoundsPrompt) {
+                VStack(spacing: 16) {
+                    Text("How many rounds?")
+                        .font(.headline)
+                    TextField("1", text: $roundsInput)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.center)
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
+                    HStack {
+                        Button("Cancel") {
+                            showingRoundsPrompt = false
+                        }
+                        .frame(maxWidth: .infinity)
+                        
+                        Button("Start") {
+                            confirmRoundsAndStart()
+                        }
+                        .frame(maxWidth: .infinity)
+                        .buttonStyle(.borderedProminent)
+                    }
+                }
+                .padding()
+                .presentationDetents([.fraction(0.28)])
+            }
             .fileImporter(
                 isPresented: $showingFileImporter,
                 allowedContentTypes: [.yogikseq, .json],
@@ -412,7 +468,21 @@ struct CustomSequenceView: View {
         }
     }
     
-    private func start() {
+    private func promptStart() {
+        guard session.state == .idle else { return }
+        roundsInput = "1"
+        showingRoundsPrompt = true
+    }
+    
+    private func confirmRoundsAndStart() {
+        showingRoundsPrompt = false
+        let rounds = Int(roundsInput) ?? 1
+        totalRounds = max(1, rounds)
+        currentRound = 1
+        startSession()
+    }
+    
+    private func startSession() {
         guard session.state == .idle else { return }
         guard !poses.isEmpty else { return }
         
@@ -452,6 +522,8 @@ struct CustomSequenceView: View {
         inSession = false
         inPrepPhase = false
         currentPoseIndex = 0
+        totalRounds = 1
+        currentRound = 1
         UIApplication.shared.isIdleTimerDisabled = false
     }
     
@@ -496,8 +568,13 @@ struct CustomSequenceView: View {
             // Move to next pose
             currentPoseIndex += 1
             playCurrentPose()
+        } else if currentRound < totalRounds {
+            // Next round
+            currentRound += 1
+            currentPoseIndex = 0
+            playCurrentPose()
         } else {
-            // All poses complete
+            // All rounds complete
             phase = .idle
             session.pause()
             showingEndPrompt = true
@@ -523,8 +600,13 @@ struct CustomSequenceView: View {
         // Collapse current expanded pose
         expandedPoseId = nil
         
-        // Add new pose
-        let newPose = Pose()
+        // Add new pose, prefilled from last pose if available
+        let newPose: Pose
+        if let last = poses.last {
+            newPose = Pose(name: last.name, transitionTime: last.transitionTime, instruction: last.instruction, holdTime: last.holdTime, holdPrompt: last.holdPrompt)
+        } else {
+            newPose = Pose()
+        }
         poses.append(newPose)
         
         // Expand the newly added pose
@@ -564,8 +646,9 @@ struct CustomSequenceView: View {
     private func loadSequence(_ sequence: SavedSequence) {
         poses = sequence.poses
         sequenceName = ""
-        start()
-        showingDial = true
+        showingDial = false
+        inSession = false
+        promptStart()
     }
     
     private func deleteSavedSequence(at offsets: IndexSet) {
