@@ -71,7 +71,7 @@ struct KriyaView: View {
         let kapalbhatiPreset = SavedKriya(
             name: "Example Kapalbhati",
             stages: [stage],
-            kriyaBreathInLabel: "In",
+            kriyaBreathInLabel: "",
             kriyaBreathOutLabel: "Out",
             roundCount: 3,
             isPreset: true
@@ -781,13 +781,19 @@ struct KriyaView: View {
             elapsed = 0
             elapsedFractional = 0.0
             let rate = getVoiceRateForDuration(stage.breathInSeconds)
-            AudioManager.shared.speak(message: kriyaBreathInLabel, voiceID: selectedVoiceID, rate: rate)
+            let inLabel = kriyaBreathInLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !inLabel.isEmpty {
+                AudioManager.shared.speak(message: inLabel, voiceID: selectedVoiceID, rate: rate)
+            }
         } else if stage.breathOutSeconds > 0 {
             phase = .breathOut
             elapsed = 0
             elapsedFractional = 0.0
             let rate = getVoiceRateForDuration(stage.breathOutSeconds)
-            AudioManager.shared.speak(message: kriyaBreathOutLabel, voiceID: selectedVoiceID, rate: rate)
+            let outLabel = kriyaBreathOutLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !outLabel.isEmpty {
+                AudioManager.shared.speak(message: outLabel, voiceID: selectedVoiceID, rate: rate)
+            }
         }
     }
     
@@ -817,12 +823,12 @@ struct KriyaView: View {
     }
     
     private func getPresetKriyas() -> [SavedKriya] {
-        // Kapalbhati preset: In 0.5s, Out 0.5s, 20 counts, 3 rounds, 20s rest
+        // Kapalbhati preset: In 0.5s, Out 0.5s, 20 counts, 3 rounds, 10s rest
         let stage = Stage(breathInSeconds: 0.5, breathOutSeconds: 0.5, counts: 20)
         let kapalbhatiPreset = SavedKriya(
             name: "Example Kapalbhati",
             stages: [stage],
-            kriyaBreathInLabel: "In",
+            kriyaBreathInLabel: "",
             kriyaBreathOutLabel: "Out",
             roundCount: 3,
             isPreset: true
