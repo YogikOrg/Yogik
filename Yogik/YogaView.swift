@@ -20,6 +20,7 @@ struct YogaView: View {
     @State private var inSession: Bool = false
     @State private var inPrepPhase: Bool = false
     @State private var prepWorkItem: DispatchWorkItem?
+    @State private var selectedLaps: Int = 0  // 0 = never ending
 
     @AppStorage("selectedVoiceID") private var selectedVoiceID: String = ""
     @AppStorage("prepTimeSeconds") private var prepTimeSeconds: Int = 5
@@ -43,9 +44,11 @@ struct YogaView: View {
         var holdSeconds: Int
         var date: Date
         var laps: Int
+        var selectedLaps: Int = 0  // 0 = never ending
 
         var name: String {
-            "hold-\(holdSeconds)"
+            let lapsText = selectedLaps == 0 ? "∞" : "\(selectedLaps)"
+            return "hold\(holdSeconds)-laps\(lapsText)"
         }
     }
 
@@ -142,6 +145,19 @@ struct YogaView: View {
                                 }
                                 .disabled(session.isRunning)
                             }
+                            
+                            HStack(spacing: 12) {
+                                Text("Laps:").font(.subheadline).fontWeight(.semibold)
+                                Spacer()
+                                Picker("", selection: $selectedLaps) {
+                                    Text("Never ending").tag(0)
+                                    ForEach(1...100, id: \.self) { lap in
+                                        Text("\(lap)").tag(lap)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .disabled(session.isRunning)
+                            }
                         }
 
                         Section {
@@ -165,6 +181,7 @@ struct YogaView: View {
                                     Button(action: {
                                         transitionSeconds = item.transitionSeconds
                                         holdSeconds = item.holdSeconds
+                                        selectedLaps = item.selectedLaps
 
                                         startSession()
                                         showingDial = true
@@ -180,12 +197,10 @@ struct YogaView: View {
                                             }
                                             Spacer()
                                             VStack(alignment: .trailing, spacing: 2) {
-                                                Text("\(item.laps) laps")
+                                                let lapsText = item.selectedLaps == 0 ? "∞" : "\(item.selectedLaps)"
+                                                Text("T:\(item.transitionSeconds) H:\(item.holdSeconds) L:\(lapsText)")
                                                     .font(.subheadline)
                                                     .foregroundColor(.primary)
-                                                Text("T:\(item.transitionSeconds) H:\(item.holdSeconds)")
-                                                    .font(.caption2)
-                                                    .foregroundColor(.secondary)
                                             }
                                         }
                                     }
@@ -340,7 +355,8 @@ struct YogaView: View {
     }
 
     private func stopSession() {
-        AudioManager.shared.stopSpeaking()
+        // Prompt at end of session
+        AudioManager.shared.speak(message: "Relax. Well done.", voiceID: selectedVoiceID, rate: 0.5)
         prepWorkItem?.cancel()
         prepWorkItem = nil
         session.stop()
@@ -389,7 +405,10 @@ struct YogaView: View {
                 }
             } else if phase == .hold {
                 lapCount += 1
-                if transitionSeconds > 0 {
+                // Check if we've reached the lap limit
+                if selectedLaps > 0 && lapCount >= selectedLaps {
+                    stopSession()
+                } else if transitionSeconds > 0 {
                     phase = .transition
                     elapsed = 1
                     AudioManager.shared.speak(message: "Move to next pose", voiceID: selectedVoiceID, rate: 0.5)
@@ -428,10 +447,10 @@ struct YogaView: View {
         if let idx = history.firstIndex(where: { $0.transitionSeconds == transitionSeconds && $0.holdSeconds == holdSeconds }) {
             var e = history.remove(at: idx)
             e.date = now
-            e.laps = 0
+            e.selectedLaps = selectedLaps
             history.insert(e, at: 0)
         } else {
-            let entry = TimerSetup(id: UUID(), transitionSeconds: transitionSeconds, holdSeconds: holdSeconds, date: now, laps: 0)
+            let entry = TimerSetup(id: UUID(), transitionSeconds: transitionSeconds, holdSeconds: holdSeconds, date: now, laps: 0, selectedLaps: selectedLaps)
             history.insert(entry, at: 0)
             if history.count > 5 {
                 history.removeLast()
@@ -444,6 +463,7 @@ struct YogaView: View {
         if let idx = history.firstIndex(where: { $0.transitionSeconds == transitionSeconds && $0.holdSeconds == holdSeconds }) {
             history[idx].laps = lapCount
             history[idx].date = Date()
+            history[idx].selectedLaps = selectedLaps
             let e = history.remove(at: idx)
             history.insert(e, at: 0)
             if history.count > 5 { history.removeLast() }
