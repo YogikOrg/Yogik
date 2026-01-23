@@ -149,6 +149,14 @@ struct CustomSequenceView: View {
                                         .foregroundColor(.secondary)
                                 }
                             }
+                            
+                            // Show round progress
+                            if totalRounds > 0 {
+                                Text("Round \(currentRound) / \(totalRounds)")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.blue)
+                            }
                         }
                         .padding(.top, 12)
                     }
@@ -495,7 +503,7 @@ struct CustomSequenceView: View {
         inSession = true
         inPrepPhase = true
         
-        AudioManager.shared.speak(message: "Prepare for your practice. Take position.", voiceID: selectedVoiceID, rate: 0.4)
+        AudioManager.shared.speak(message: "Prepare for your practice. Take position.", voiceID: selectedVoiceID, rate: 0.35)
         
         let workItem = DispatchWorkItem {
             self.inPrepPhase = false
@@ -553,9 +561,9 @@ struct CustomSequenceView: View {
                 elapsedSeconds = 0
                 let pose = poses[currentPoseIndex]
                 // Speak hold instruction followed by user hold prompt
-                AudioManager.shared.speak(message: "Hold the position", voiceID: selectedVoiceID, rate: 0.4)
+                AudioManager.shared.speak(message: "Hold the position", voiceID: selectedVoiceID, rate: 0.35)
                 if !pose.holdPrompt.isEmpty {
-                    AudioManager.shared.speak(message: pose.holdPrompt, voiceID: selectedVoiceID, rate: 0.4)
+                    AudioManager.shared.speak(message: pose.holdPrompt, voiceID: selectedVoiceID, rate: 0.35)
                 }
             case .hold:
                 // Move to next pose
@@ -582,7 +590,7 @@ struct CustomSequenceView: View {
             session.pause()
             showingEndPrompt = true
             AudioManager.shared.stopSpeaking()
-            AudioManager.shared.speak(message: "Practice complete. Well done.", voiceID: selectedVoiceID, rate: 0.4)
+            AudioManager.shared.speak(message: "Practice complete. Well done.", voiceID: selectedVoiceID, rate: 0.35)
         }
     }
     
@@ -592,10 +600,10 @@ struct CustomSequenceView: View {
         elapsedSeconds = 0
         
         // Speak pose name first, then instruction
-        AudioManager.shared.speak(message: pose.name, voiceID: selectedVoiceID, rate: 0.4)
+        AudioManager.shared.speak(message: pose.name, voiceID: selectedVoiceID, rate: 0.35)
         
         if !pose.instruction.isEmpty {
-            AudioManager.shared.speak(message: pose.instruction, voiceID: selectedVoiceID, rate: 0.4)
+            AudioManager.shared.speak(message: pose.instruction, voiceID: selectedVoiceID, rate: 0.35)
         }
     }
     
