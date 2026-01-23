@@ -388,6 +388,9 @@ struct CustomSequenceView: View {
                 // Load saved sequences from UserDefaults
                 savedSequences = getSavedSequences()
                 
+                // Add preset sequence if it doesn't exist
+                addPresetSequenceIfNeeded()
+                
                 // Expand first pose by default if there's only one pose
                 if poses.count == 1, let firstPose = poses.first {
                     expandedPoseId = firstPose.id
@@ -588,11 +591,11 @@ struct CustomSequenceView: View {
         phase = .transition
         elapsedSeconds = 0
         
-        // Speak instruction
+        // Speak pose name first, then instruction
+        AudioManager.shared.speak(message: pose.name, voiceID: selectedVoiceID, rate: 0.4)
+        
         if !pose.instruction.isEmpty {
             AudioManager.shared.speak(message: pose.instruction, voiceID: selectedVoiceID, rate: 0.4)
-        } else {
-            AudioManager.shared.speak(message: pose.name, voiceID: selectedVoiceID, rate: 0.4)
         }
     }
     
@@ -736,6 +739,53 @@ struct CustomSequenceView: View {
         case .failure(let error):
             // Handle error
             print("File picker error: \(error)")
+        }
+    }
+    
+    private func addPresetSequenceIfNeeded() {
+        let presetName = "Example Sun Salutation v2 (edit it to suit you)"
+        let allSequences = getSavedSequences()
+        
+        // Check if preset already exists
+        if allSequences.contains(where: { $0.name == presetName }) {
+            return
+        }
+        
+        // Create Surya Namaskar preset sequence
+        let poses: [Pose] = [
+            Pose(name: "Prayer Pose", transitionTime: 5, instruction: "Stand upright and bring your hands to heart center in prayer position.", holdTime: 10, holdPrompt: "Feel the ground beneath your feet. Center yourself."),
+            Pose(name: "Raised Arms Pose", transitionTime: 5, instruction: "Inhale and raise your arms above your head, arching slightly backward.", holdTime: 10, holdPrompt: "Feel the stretch through your entire body."),
+            Pose(name: "Forward Fold", transitionTime: 5, instruction: "Exhale and fold forward, letting your head and arms hang heavy.", holdTime: 10, holdPrompt: "Relax your neck and shoulders."),
+            Pose(name: "Low Lunge Right", transitionTime: 5, instruction: "Inhale and step your right foot back into a low lunge, dropping your back knee. Stretch and look up.", holdTime: 10, holdPrompt: "Keep your front knee aligned over your ankle."),
+            Pose(name: "Plank", transitionTime: 5, instruction: "Step back to a plank position, shoulders over wrists, body in a straight line.", holdTime: 10, holdPrompt: "Engage your core and keep your body aligned."),
+            Pose(name: "Eight Limbed Pose", transitionTime: 5, instruction: "Lower your body so that your hands, feet, knees, chest, and forehead touch the ground.", holdTime: 8, holdPrompt: "This pose combines strength and surrender."),
+            Pose(name: "Cobra Pose", transitionTime: 5, instruction: "Inhale and roll forward, pressing your chest up with your hands while keeping hips down. Stretch and look up.", holdTime: 10, holdPrompt: "Open your chest, lengthen your spine."),
+            Pose(name: "Downward Facing Dog", transitionTime: 5, instruction: "Exhale and push back into downward dog, forming an inverted V-shape.", holdTime: 15, holdPrompt: "Press firmly through your hands, relax your head."),
+            Pose(name: "Low Lunge Right Forward", transitionTime: 5, instruction: "Inhale and step your right foot forward into a low lunge. Stretch and look up.", holdTime: 10, holdPrompt: "Keep your front knee aligned over your ankle."),
+            Pose(name: "Forward Fold", transitionTime: 5, instruction: "Step forward and fold, letting your upper body hang.", holdTime: 10, holdPrompt: "Breathe deeply and let tension melt away."),
+            Pose(name: "Raised Arms Pose", transitionTime: 5, instruction: "Inhale and sweep your arms up, arching gently backward.", holdTime: 10, holdPrompt: "Expand your chest and embrace the moment."),
+            Pose(name: "Prayer Pose", transitionTime: 5, instruction: "Exhale and return to standing, hands at heart center.", holdTime: 10, holdPrompt: "Complete half of Surya Namaskar. Now repeat with the left leg."),
+            Pose(name: "Raised Arms Pose", transitionTime: 5, instruction: "Inhale and raise your arms above your head, arching slightly backward.", holdTime: 10, holdPrompt: "Feel the stretch through your entire body."),
+            Pose(name: "Forward Fold", transitionTime: 5, instruction: "Exhale and fold forward, letting your head and arms hang heavy.", holdTime: 10, holdPrompt: "Relax your neck and shoulders."),
+            Pose(name: "Low Lunge Left", transitionTime: 5, instruction: "Inhale and step your left foot back into a low lunge, dropping your back knee. Stretch and look up.", holdTime: 10, holdPrompt: "Keep your front knee aligned over your ankle."),
+            Pose(name: "Plank", transitionTime: 5, instruction: "Step back to a plank position, shoulders over wrists, body in a straight line.", holdTime: 10, holdPrompt: "Engage your core and keep your body aligned."),
+            Pose(name: "Eight Limbed Pose", transitionTime: 5, instruction: "Lower your body so that your hands, feet, knees, chest, and forehead touch the ground.", holdTime: 8, holdPrompt: "This pose combines strength and surrender."),
+            Pose(name: "Cobra Pose", transitionTime: 5, instruction: "Inhale and roll forward, pressing your chest up with your hands while keeping hips down. Stretch and look up.", holdTime: 10, holdPrompt: "Open your chest, lengthen your spine."),
+            Pose(name: "Downward Facing Dog", transitionTime: 5, instruction: "Exhale and push back into downward dog, forming an inverted V-shape.", holdTime: 15, holdPrompt: "Press firmly through your hands, relax your head."),
+            Pose(name: "Low Lunge Left Forward", transitionTime: 5, instruction: "Inhale and step your left foot forward into a low lunge. Stretch and look up.", holdTime: 10, holdPrompt: "Keep your front knee aligned over your ankle."),
+            Pose(name: "Forward Fold", transitionTime: 5, instruction: "Step forward and fold, letting your upper body hang.", holdTime: 10, holdPrompt: "Breathe deeply and let tension melt away."),
+            Pose(name: "Raised Arms Pose", transitionTime: 5, instruction: "Inhale and sweep your arms up, arching gently backward.", holdTime: 10, holdPrompt: "Expand your chest and embrace the moment."),
+            Pose(name: "Prayer Pose", transitionTime: 5, instruction: "Exhale and return to standing, hands at heart center.", holdTime: 10, holdPrompt: "Complete one full cycle of Surya Namaskar.")
+        ]
+        
+        let presetSequence = SavedSequence(name: presetName, poses: poses)
+        var updatedSequences = allSequences
+        updatedSequences.append(presetSequence)
+        
+        let encoder = JSONEncoder()
+        if let encoded = try? encoder.encode(updatedSequences) {
+            UserDefaults.standard.set(encoded, forKey: "savedCustomSequences")
+            savedSequences = updatedSequences
         }
     }
 }
