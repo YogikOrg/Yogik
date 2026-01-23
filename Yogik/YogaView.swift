@@ -446,26 +446,28 @@ struct YogaView: View {
 
     private func addOrUpdateHistoryOnStart() {
         let now = Date()
-        if let idx = history.firstIndex(where: { $0.transitionSeconds == transitionSeconds && $0.holdSeconds == holdSeconds }) {
-            var e = history.remove(at: idx)
-            e.date = now
-            e.selectedLaps = selectedLaps
-            history.insert(e, at: 0)
-        } else {
+        // Only create new entry if this exact configuration doesn't exist
+        if !history.contains(where: { $0.transitionSeconds == transitionSeconds && $0.holdSeconds == holdSeconds && $0.selectedLaps == selectedLaps }) {
             let entry = TimerSetup(id: UUID(), transitionSeconds: transitionSeconds, holdSeconds: holdSeconds, date: now, laps: 0, selectedLaps: selectedLaps)
             history.insert(entry, at: 0)
             if history.count > 5 {
                 history.removeLast()
+            }
+        } else {
+            // Update the existing entry's date if exact match exists
+            if let idx = history.firstIndex(where: { $0.transitionSeconds == transitionSeconds && $0.holdSeconds == holdSeconds && $0.selectedLaps == selectedLaps }) {
+                var e = history.remove(at: idx)
+                e.date = now
+                history.insert(e, at: 0)
             }
         }
         saveHistory()
     }
 
     private func updateHistoryOnStop() {
-        if let idx = history.firstIndex(where: { $0.transitionSeconds == transitionSeconds && $0.holdSeconds == holdSeconds }) {
+        if let idx = history.firstIndex(where: { $0.transitionSeconds == transitionSeconds && $0.holdSeconds == holdSeconds && $0.selectedLaps == selectedLaps }) {
             history[idx].laps = lapCount
             history[idx].date = Date()
-            history[idx].selectedLaps = selectedLaps
             let e = history.remove(at: idx)
             history.insert(e, at: 0)
             if history.count > 5 { history.removeLast() }

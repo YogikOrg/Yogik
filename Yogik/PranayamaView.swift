@@ -25,6 +25,7 @@ struct PranayamaView: View {
     @State private var remaining: Int = 0
     @State private var elapsed: Int = 0
     @State private var roundCount: Int = 0
+    @State private var selectedLaps: Int = 0  // 0 = never ending
     @State private var isPaused: Bool = false
     @State private var showingDial: Bool = false
     @State private var countElapsed: Double = 0
@@ -64,10 +65,11 @@ struct PranayamaView: View {
         var holdOutRatio: Int
         var pace: String
         var date: Date
-        var rounds: Int
+        var selectedLaps: Int = 0  // 0 = never ending
         
         var name: String {
-            "\(breathInRatio):\(holdInRatio):\(breathOutRatio):\(holdOutRatio)"
+            let lapsText = selectedLaps == 0 ? "∞" : "\(selectedLaps)"
+            return "\(breathInRatio):\(holdInRatio):\(breathOutRatio):\(holdOutRatio)-laps\(lapsText)"
         }
     }
     
@@ -198,6 +200,21 @@ struct PranayamaView: View {
                         }
                         
                         Section {
+                            HStack(spacing: 12) {
+                                Text("Laps:").font(.subheadline).fontWeight(.semibold)
+                                Spacer()
+                                Picker("", selection: $selectedLaps) {
+                                    Text("Never ending").tag(0)
+                                    ForEach(1...100, id: \.self) { lap in
+                                        Text("\(lap)").tag(lap)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .disabled(isRunning)
+                            }
+                        }
+                        
+                        Section {
                             Button(action: { start(); showingDial = inSession }) {
                                 HStack(spacing: 8) {
                                     Image(systemName: "play.fill")
@@ -221,6 +238,7 @@ struct PranayamaView: View {
                                         breathOutRatio = item.breathOutRatio
                                         holdOutRatio = item.holdOutRatio
                                         selectedPace = Pace(rawValue: item.pace) ?? .fast
+                                        selectedLaps = item.selectedLaps
                                         start()
                                         showingDial = inSession
                                     }) {
@@ -233,12 +251,10 @@ struct PranayamaView: View {
                                                     .foregroundColor(.secondary)
                                             }
                                             Spacer()
-                                            VStack(alignment: .trailing) {
-                                                Text("\(item.rounds) rounds")
-                                                    .font(.subheadline)
+                                            VStack(alignment: .trailing, spacing: 2) {
                                                 Text(item.pace)
-                                                    .font(.caption2)
-                                                    .foregroundColor(.secondary)
+                                                    .font(.subheadline)
+                                                    .foregroundColor(.primary)
                                             }
                                         }
                                     }
@@ -410,7 +426,10 @@ struct PranayamaView: View {
     }
     
     private func stop() {
-        AudioManager.shared.stopSpeaking()
+        // Only prompt if a session was actually running
+        if inSession {
+            AudioManager.shared.speak(message: "Relax. Well done.", voiceID: selectedVoiceID, rate: 0.5)
+        }
         prepWorkItem?.cancel()
         prepWorkItem = nil
         session.stop()
@@ -517,6 +536,13 @@ struct PranayamaView: View {
         countElapsed = 0  // Reset elapsed time for new round
         elapsed = 1  // Reset count to 1 for new round
         roundCount += 1
+        
+        // Check if we've reached the lap limit
+        if selectedLaps > 0 && roundCount >= selectedLaps {
+            stop()
+            return
+        }
+        
         // Start next round by selecting the first available phase in order
         if breathInRatio > 0 {
             phase = .breathIn
@@ -587,18 +613,15 @@ struct PranayamaView: View {
     
     private func addOrUpdateHistoryOnStart() {
         let now = Date()
-        if let idx = history.firstIndex(where: {
+        // Only create new entry if this exact configuration doesn't exist
+        if !history.contains(where: {
             $0.breathInRatio == breathInRatio &&
             $0.holdInRatio == holdInRatio &&
             $0.breathOutRatio == breathOutRatio &&
             $0.holdOutRatio == holdOutRatio &&
-            $0.pace == selectedPace.rawValue
+            $0.pace == selectedPace.rawValue &&
+            $0.selectedLaps == selectedLaps
         }) {
-            var e = history.remove(at: idx)
-            e.date = now
-            e.rounds = 0
-            history.insert(e, at: 0)
-        } else {
             let entry = TimerSetup(
                 id: UUID(),
                 breathInRatio: breathInRatio,
@@ -607,11 +630,25 @@ struct PranayamaView: View {
                 holdOutRatio: holdOutRatio,
                 pace: selectedPace.rawValue,
                 date: now,
-                rounds: 0
+                selectedLaps: selectedLaps
             )
             history.insert(entry, at: 0)
             if history.count > 5 {
                 history.removeLast()
+            }
+        } else {
+            // Update the existing entry's date if exact match exists
+            if let idx = history.firstIndex(where: {
+                $0.breathInRatio == breathInRatio &&
+                $0.holdInRatio == holdInRatio &&
+                $0.breathOutRatio == breathOutRatio &&
+                $0.holdOutRatio == holdOutRatio &&
+                $0.pace == selectedPace.rawValue &&
+                $0.selectedLaps == selectedLaps
+            }) {
+                var e = history.remove(at: idx)
+                e.date = now
+                history.insert(e, at: 0)
             }
         }
         saveHistory()
@@ -623,9 +660,9 @@ struct PranayamaView: View {
             $0.holdInRatio == holdInRatio &&
             $0.breathOutRatio == breathOutRatio &&
             $0.holdOutRatio == holdOutRatio &&
-            $0.pace == selectedPace.rawValue
+            $0.pace == selectedPace.rawValue &&
+            $0.selectedLaps == selectedLaps
         }) {
-            history[idx].rounds = roundCount
             history[idx].date = Date()
             let e = history.remove(at: idx)
             history.insert(e, at: 0)
