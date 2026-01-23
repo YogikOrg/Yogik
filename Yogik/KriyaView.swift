@@ -30,14 +30,31 @@ struct KriyaView: View {
         let kriyaBreathInLabel: String
         let kriyaBreathOutLabel: String
         let roundCount: Int
+        var isPreset: Bool
         
-        init(id: UUID = UUID(), name: String, stages: [Stage], kriyaBreathInLabel: String = "Inhale", kriyaBreathOutLabel: String = "Exhale", roundCount: Int = 1) {
+        init(id: UUID = UUID(), name: String, stages: [Stage], kriyaBreathInLabel: String = "Inhale", kriyaBreathOutLabel: String = "Exhale", roundCount: Int = 1, isPreset: Bool = false) {
             self.id = id
             self.name = name
             self.stages = stages
             self.kriyaBreathInLabel = kriyaBreathInLabel
             self.kriyaBreathOutLabel = kriyaBreathOutLabel
             self.roundCount = roundCount
+            self.isPreset = isPreset
+        }
+        
+        enum CodingKeys: String, CodingKey {
+            case id, name, stages, kriyaBreathInLabel, kriyaBreathOutLabel, roundCount, isPreset
+        }
+        
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            id = try container.decode(UUID.self, forKey: .id)
+            name = try container.decode(String.self, forKey: .name)
+            stages = try container.decode([Stage].self, forKey: .stages)
+            kriyaBreathInLabel = try container.decode(String.self, forKey: .kriyaBreathInLabel)
+            kriyaBreathOutLabel = try container.decode(String.self, forKey: .kriyaBreathOutLabel)
+            roundCount = try container.decode(Int.self, forKey: .roundCount)
+            isPreset = try container.decodeIfPresent(Bool.self, forKey: .isPreset) ?? false
         }
     }
     
@@ -48,7 +65,21 @@ struct KriyaView: View {
     @State private var kriyaBreathOutLabel: String = "Out"
     @State private var kriyaName: String = ""
     @State private var roundCount: Int = 1
+    @State private var presetKriyas: [SavedKriya] = {
+        // Kapalbhati preset: In 0.5s, Out 0.5s, 20 counts, 3 rounds, 10s rest
+        let stage = Stage(breathInSeconds: 0.5, breathOutSeconds: 0.5, counts: 20)
+        let kapalbhatiPreset = SavedKriya(
+            name: "Example Kapalbhati",
+            stages: [stage],
+            kriyaBreathInLabel: "In",
+            kriyaBreathOutLabel: "Out",
+            roundCount: 3,
+            isPreset: true
+        )
+        return [kapalbhatiPreset]
+    }()
     @State private var remainingRounds: Int = 0
+    @State private var shouldScrollToTop: Bool = false
     @State private var elapsed: Int = 0
     @State private var elapsedFractional: Double = 0.0
     @State private var isPaused: Bool = false
@@ -239,15 +270,17 @@ struct KriyaView: View {
                     Spacer()
                 } else {
                     // Setup UI
-                    Form {
-                        Section {
-                                    HStack {
-                                        Text("Kriya name")
-                                        Spacer()
-                                        TextField("Enter name", text: $kriyaName)
-                                            .multilineTextAlignment(.trailing)
-                                    }
+                    ScrollViewReader { scrollProxy in
+                        Form {
+                            Section {
+                                HStack {
+                                    Text("Kriya name")
+                                    Spacer()
+                                    TextField("Enter name", text: $kriyaName)
+                                        .multilineTextAlignment(.trailing)
                                 }
+                            }
+                            .id(0)
                                 
                                 Section {
                                     HStack {
@@ -385,15 +418,15 @@ struct KriyaView: View {
                         }
                         
                         Section {
-                            Button(action: { start(); showingDial = true }) {
+                            Button(action: { validateAndSaveKriya() }) {
                                 HStack(spacing: 8) {
-                                    Image(systemName: "play.fill")
-                                    Text("Start")
+                                    Image(systemName: "square.and.arrow.down")
+                                    Text("Save")
                                 }
                                 .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.borderedProminent)
-                            .disabled(session.isRunning || stages.isEmpty)
+                            .disabled(session.isRunning || stages.isEmpty || kriyaName.trimmingCharacters(in: .whitespaces).isEmpty)
                         }
                         
                         if !getSavedKriyas().isEmpty {
@@ -412,15 +445,51 @@ struct KriyaView: View {
                                     }
                                 }
                                 .onDelete { indexSet in
-                                    let kriyas = getSavedKriyas()
-                                    for index in indexSet {
+                                    var kriyas = getSavedKriyas()
+                                    for index in indexSet.sorted(by: >) {
                                         if index < kriyas.count {
                                             deleteSavedKriya(kriyas[index])
+                                            kriyas.remove(at: index)
                                         }
                                     }
                                 }
                             } header: {
                                 Text("Saved Kriyas")
+                            }
+                        }
+                        
+                        if !presetKriyas.isEmpty {
+                            Section(header: Text("Examples to customize")) {
+                                ForEach(presetKriyas, id: \.id) { preset in
+                                    Button(action: { loadKriyaForEditing(preset) }) {
+                                        HStack {
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                Text(preset.name)
+                                                    .font(.subheadline)
+                                                    .fontWeight(.semibold)
+                                                    .foregroundColor(.primary)
+                                                Text("\(preset.stages.count) stage\(preset.stages.count == 1 ? "" : "s")")
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                            Spacer()
+                                            Image(systemName: "pencil")
+                                                .font(.caption)
+                                                .foregroundColor(.blue)
+                                        }
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .contentShape(Rectangle())
+                                    .padding(.vertical, 8)
+                                }
+                            }
+                        }
+                        }
+                        .onChange(of: shouldScrollToTop) { _, newValue in
+                            if newValue {
+                                scrollProxy.scrollTo(0, anchor: .top)
+                                shouldScrollToTop = false
                             }
                         }
                     }
@@ -445,7 +514,7 @@ struct KriyaView: View {
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
             }
-            .alert("Invalid durations", isPresented: $showValidationAlert) {
+            .alert("Validation", isPresented: $showValidationAlert) {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(validationMessage)
@@ -459,6 +528,8 @@ struct KriyaView: View {
                 let currentIn = kriyaBreathInLabel.trimmingCharacters(in: .whitespacesAndNewlines)
                 let currentOut = kriyaBreathOutLabel.trimmingCharacters(in: .whitespacesAndNewlines)
                 selectedCombinedOption = "\(currentIn), \(currentOut)"
+                // Load preset Kriyas
+                presetKriyas = getPresetKriyas()
             }
             .sheet(isPresented: $editingCustomLabels) {
                 NavigationView {
@@ -745,6 +816,38 @@ struct KriyaView: View {
         return (try? decoder.decode([SavedKriya].self, from: data)) ?? []
     }
     
+    private func getPresetKriyas() -> [SavedKriya] {
+        // Kapalbhati preset: In 0.5s, Out 0.5s, 20 counts, 3 rounds, 20s rest
+        let stage = Stage(breathInSeconds: 0.5, breathOutSeconds: 0.5, counts: 20)
+        let kapalbhatiPreset = SavedKriya(
+            name: "Example Kapalbhati",
+            stages: [stage],
+            kriyaBreathInLabel: "In",
+            kriyaBreathOutLabel: "Out",
+            roundCount: 3,
+            isPreset: true
+        )
+        return [kapalbhatiPreset]
+    }
+    
+    private func validateAndSaveKriya() {
+        let trimmedName = kriyaName.trimmingCharacters(in: .whitespaces)
+        
+        if trimmedName.isEmpty {
+            validationMessage = "Please enter a name for your Kriya"
+            showValidationAlert = true
+            return
+        }
+        
+        if stages.isEmpty {
+            validationMessage = "Please add at least one stage"
+            showValidationAlert = true
+            return
+        }
+        
+        saveKriya()
+    }
+    
     private func saveKriya() {
         let trimmedName = kriyaName.trimmingCharacters(in: .whitespaces)
         guard !trimmedName.isEmpty, !stages.isEmpty else { return }
@@ -775,6 +878,20 @@ struct KriyaView: View {
         kriyaName = ""
         start()
         showingDial = true
+    }
+    
+    private func loadKriyaForEditing(_ kriya: SavedKriya) {
+        stages = kriya.stages
+        kriyaBreathInLabel = kriya.kriyaBreathInLabel
+        kriyaBreathOutLabel = kriya.kriyaBreathOutLabel
+        selectedCombinedOption = "\(kriyaBreathInLabel), \(kriyaBreathOutLabel)"
+        roundCount = kriya.roundCount
+        kriyaName = ""
+        // For preset Kapalbhati, set rest to 10s
+        if kriya.isPreset && kriya.name == "Example Kapalbhati" {
+            restBetweenRoundsSeconds = 10
+        }
+        shouldScrollToTop = true
     }
     
     private func deleteSavedKriya(_ kriya: SavedKriya) {
