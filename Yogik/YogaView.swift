@@ -355,8 +355,10 @@ struct YogaView: View {
     }
 
     private func stopSession() {
-        // Prompt at end of session
-        AudioManager.shared.speak(message: "Relax. Well done.", voiceID: selectedVoiceID, rate: 0.5)
+        // Only prompt if a session was actually running
+        if inSession {
+            AudioManager.shared.speak(message: "Relax. Well done.", voiceID: selectedVoiceID, rate: 0.5)
+        }
         prepWorkItem?.cancel()
         prepWorkItem = nil
         session.stop()
