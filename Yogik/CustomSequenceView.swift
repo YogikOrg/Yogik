@@ -36,17 +36,36 @@ struct CustomSequenceView: View {
         let id: UUID
         let name: String
         let poses: [Pose]
+        var isPreset: Bool
         
-        init(id: UUID = UUID(), name: String, poses: [Pose]) {
+        init(id: UUID = UUID(), name: String, poses: [Pose], isPreset: Bool = false) {
             self.id = id
             self.name = name
             self.poses = poses
+            self.isPreset = isPreset
+        }
+        
+        enum CodingKeys: String, CodingKey {
+            case id, name, poses, isPreset
+        }
+        
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            id = try container.decode(UUID.self, forKey: .id)
+            name = try container.decode(String.self, forKey: .name)
+            poses = try container.decode([Pose].self, forKey: .poses)
+            isPreset = try container.decodeIfPresent(Bool.self, forKey: .isPreset) ?? false
         }
     }
     
     struct ExportedSequence: Codable {
-        let version: Int = 1
+        let version: Int
         let sequence: SavedSequence
+        
+        init(sequence: SavedSequence) {
+            self.version = 1
+            self.sequence = sequence
+        }
     }
     
     @State private var poses: [Pose] = [Pose()]
@@ -65,6 +84,7 @@ struct CustomSequenceView: View {
     @State private var selectedSequenceForExport: SavedSequence?
     @State private var showingShareSheet: Bool = false
     @State private var savedSequences: [SavedSequence] = []
+    @State private var presetSequences: [SavedSequence] = []
     @State private var showingRoundsPrompt: Bool = false
     @State private var roundsInput: String = "1"
     @State private var totalRounds: Int = 1
@@ -361,17 +381,43 @@ struct CustomSequenceView: View {
                                     .padding(.vertical, 4)
                                 }
                             }
-                            
-                            Section {
-                                Button(action: { showingFileImporter = true }) {
-                                    HStack(spacing: 8) {
-                                        Image(systemName: "square.and.arrow.down")
-                                        Text("Import Sequence")
+                        }
+                        
+                        if !presetSequences.isEmpty {
+                            Section(header: Text("Examples to customize")) {
+                                ForEach(presetSequences, id: \.id) { preset in
+                                    Button(action: { loadSequenceForEditing(preset) }) {
+                                        HStack {
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                Text(preset.name)
+                                                    .font(.subheadline)
+                                                    .fontWeight(.semibold)
+                                                    .foregroundColor(.primary)
+                                                Text("\(preset.poses.count) pose\(preset.poses.count == 1 ? "" : "s")")
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                            Spacer()
+                                            Image(systemName: "pencil")
+                                                .font(.caption)
+                                                .foregroundColor(.blue)
+                                        }
                                     }
-                                    .frame(maxWidth: .infinity)
+                                    .buttonStyle(.plain)
+                                    .padding(.vertical, 4)
                                 }
-                                .buttonStyle(.bordered)
                             }
+                        }
+                        
+                        Section {
+                            Button(action: { showingFileImporter = true }) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "square.and.arrow.down")
+                                    Text("Import Sequence")
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
                         }
                     }
                     Spacer()
@@ -393,11 +439,12 @@ struct CustomSequenceView: View {
                 }
             }
             .onAppear {
-                // Load saved sequences from UserDefaults
-                savedSequences = getSavedSequences()
+                // Load saved sequences from UserDefaults (only user sequences)
+                let allSequences = getSavedSequences()
+                savedSequences = allSequences.filter { !$0.isPreset }
                 
-                // Add preset sequence if it doesn't exist
-                addPresetSequenceIfNeeded()
+                // Load preset sequences separately
+                presetSequences = getPresetSequences()
                 
                 // Expand first pose by default if there's only one pose
                 if poses.count == 1, let firstPose = poses.first {
@@ -662,6 +709,14 @@ struct CustomSequenceView: View {
         promptStart()
     }
     
+    private func loadSequenceForEditing(_ sequence: SavedSequence) {
+        poses = sequence.poses
+        sequenceName = ""
+        showingDial = false
+        inSession = false
+        // Don't start - just load for editing
+    }
+    
     private func deleteSavedSequence(at offsets: IndexSet) {
         var allSequences = getSavedSequences()
         allSequences.remove(atOffsets: offsets)
@@ -738,7 +793,7 @@ struct CustomSequenceView: View {
                 let encoder = JSONEncoder()
                 if let encoded = try? encoder.encode(allSequences) {
                     UserDefaults.standard.set(encoded, forKey: "savedCustomSequences")
-                    savedSequences = allSequences
+                    savedSequences = allSequences.filter { !$0.isPreset }
                 }
             } catch {
                 // Handle error silently
@@ -750,14 +805,8 @@ struct CustomSequenceView: View {
         }
     }
     
-    private func addPresetSequenceIfNeeded() {
-        let presetName = "Example Sun Salutation v2 (edit it to suit you)"
-        let allSequences = getSavedSequences()
-        
-        // Check if preset already exists
-        if allSequences.contains(where: { $0.name == presetName }) {
-            return
-        }
+    private func getPresetSequences() -> [SavedSequence] {
+        let presetName = "Sun Salutation (Surya Namaskar)"
         
         // Create Surya Namaskar preset sequence
         let poses: [Pose] = [
@@ -786,15 +835,8 @@ struct CustomSequenceView: View {
             Pose(name: "Prayer Pose", transitionTime: 5, instruction: "Exhale and return to standing, hands at heart center.", holdTime: 10, holdPrompt: "Complete one full cycle of Surya Namaskar.")
         ]
         
-        let presetSequence = SavedSequence(name: presetName, poses: poses)
-        var updatedSequences = allSequences
-        updatedSequences.append(presetSequence)
-        
-        let encoder = JSONEncoder()
-        if let encoded = try? encoder.encode(updatedSequences) {
-            UserDefaults.standard.set(encoded, forKey: "savedCustomSequences")
-            savedSequences = updatedSequences
-        }
+        let presetSequence = SavedSequence(name: presetName, poses: poses, isPreset: true)
+        return [presetSequence]
     }
 }
 
