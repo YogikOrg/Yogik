@@ -79,6 +79,7 @@ struct CustomSequenceView: View {
     @State private var showingEndPrompt: Bool = false
     @State private var prepWorkItem: DispatchWorkItem?
     @State private var showingSettings: Bool = false
+    @State private var showingHelp = false
     @State private var expandedPoseId: UUID?
     @State private var showingFileImporter: Bool = false
     @State private var selectedSequenceForExport: SavedSequence?
@@ -433,8 +434,13 @@ struct CustomSequenceView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingSettings = true }) {
-                        Image(systemName: "gearshape")
+                    HStack {
+                        Button(action: { showingHelp = true }) {
+                            Image(systemName: "questionmark.circle")
+                        }
+                        Button(action: { showingSettings = true }) {
+                            Image(systemName: "gearshape")
+                        }
                     }
                 }
             }
@@ -456,6 +462,9 @@ struct CustomSequenceView: View {
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
+            }
+            .sheet(isPresented: $showingHelp) {
+                HelpView()
             }
             .sheet(isPresented: $showingRoundsPrompt) {
                 VStack(spacing: 16) {

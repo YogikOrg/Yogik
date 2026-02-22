@@ -33,6 +33,7 @@ struct YogaView: View {
     }
     @State private var activePicker: PickerSelection? = nil
     @State private var showingSettings: Bool = false
+    @State private var showingHelp = false
 
     enum Phase {
         case idle, transition, hold
@@ -223,13 +224,21 @@ struct YogaView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingSettings = true }) {
-                        Image(systemName: "gearshape")
+                    HStack {
+                        Button(action: { showingHelp = true }) {
+                            Image(systemName: "questionmark.circle")
+                        }
+                        Button(action: { showingSettings = true }) {
+                            Image(systemName: "gearshape")
+                        }
                     }
                 }
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
+            }
+            .sheet(isPresented: $showingHelp) {
+                HelpView()
             }
             .sheet(item: $activePicker) { selection in
                 NavigationView {

@@ -76,6 +76,7 @@ struct PranayamaView: View {
     @State private var history: [TimerSetup] = []
     private let historyKey = "Yogik.pranayamaHistory"
     @State private var showingSettings: Bool = false
+    @State private var showingHelp = false
     @State private var showRatiosZeroAlert: Bool = false
     
     var body: some View {
@@ -277,13 +278,21 @@ struct PranayamaView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingSettings = true }) {
-                        Image(systemName: "gearshape")
+                    HStack {
+                        Button(action: { showingHelp = true }) {
+                            Image(systemName: "questionmark.circle")
+                        }
+                        Button(action: { showingSettings = true }) {
+                            Image(systemName: "gearshape")
+                        }
                     }
                 }
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
+            }
+            .sheet(isPresented: $showingHelp) {
+                HelpView()
             }
             .sheet(item: $activePicker) { selection in
                 NavigationView {

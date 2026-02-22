@@ -169,6 +169,7 @@ struct KriyaView: View {
     }
     @State private var phase: Phase = .idle
     @State private var showingSettings: Bool = false
+    @State private var showingHelp = false
     
     var body: some View {
         NavigationView {
@@ -292,7 +293,7 @@ struct KriyaView: View {
                                             }
                                         }
                                         .pickerStyle(.menu)
-                                        .onChange(of: selectedCombinedOption) { _, newValue in
+                                        .onChange(of: selectedCombinedOption) { newValue in
                                             if newValue == "Custom text" {
                                                 // Reset selection to current combination and open editor
                                                 let currentIn = kriyaBreathInLabel.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -486,7 +487,7 @@ struct KriyaView: View {
                             }
                         }
                         }
-                        .onChange(of: shouldScrollToTop) { _, newValue in
+                        .onChange(of: shouldScrollToTop) { newValue in
                             if newValue {
                                 scrollProxy.scrollTo(0, anchor: .top)
                                 shouldScrollToTop = false
@@ -506,13 +507,21 @@ struct KriyaView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingSettings = true }) {
-                        Image(systemName: "gearshape")
+                    HStack {
+                        Button(action: { showingHelp = true }) {
+                            Image(systemName: "questionmark.circle")
+                        }
+                        Button(action: { showingSettings = true }) {
+                            Image(systemName: "gearshape")
+                        }
                     }
                 }
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
+            }
+            .sheet(isPresented: $showingHelp) {
+                HelpView()
             }
             .alert("Validation", isPresented: $showValidationAlert) {
                 Button("OK", role: .cancel) {}
