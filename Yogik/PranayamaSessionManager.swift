@@ -69,11 +69,12 @@ class PranayamaSessionManager: ObservableObject {
     }
     
     private func startTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: timerInterval, repeats: true) { [weak self] _ in
+        let t = Timer.scheduledTimer(withTimeInterval: timerInterval, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             self.tickHandler?(self.timerInterval)
         }
-        RunLoop.main.add(timer!, forMode: .common)
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
     }
     
     deinit {

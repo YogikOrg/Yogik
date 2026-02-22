@@ -20,7 +20,7 @@ struct SettingsView: View {
                         }
                     }
                     .pickerStyle(MenuPickerStyle())
-                    .onChange(of: selectedVoiceID) { oldValue, newValue in
+                    .onChange(of: selectedVoiceID) { _ in
                         testVoicePrompt()
                     }
                 }
