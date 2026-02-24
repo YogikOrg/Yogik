@@ -84,6 +84,7 @@ struct CustomSequenceView: View {
     @State private var showingFileImporter: Bool = false
     @State private var selectedSequenceForExport: SavedSequence?
     @State private var showingShareSheet: Bool = false
+    @State private var shouldScrollToTop: Bool = false
     @State private var savedSequences: [SavedSequence] = []
     @State private var presetSequences: [SavedSequence] = []
     @State private var showingRoundsPrompt: Bool = false
@@ -213,6 +214,7 @@ struct CustomSequenceView: View {
                     Spacer()
                 } else {
                     // Setup UI
+                    ScrollViewReader { scrollProxy in
                     Form {
                         Section {
                             HStack {
@@ -222,6 +224,7 @@ struct CustomSequenceView: View {
                                     .multilineTextAlignment(.trailing)
                             }
                         }
+                        .id(0)
                         
                         Section(header: Text("Poses")) {
                             ForEach(Array(poses.enumerated()), id: \.element.id) { index, pose in
@@ -349,7 +352,7 @@ struct CustomSequenceView: View {
                                 ForEach(savedSequences, id: \.id) { saved in
                                     VStack(alignment: .leading, spacing: 8) {
                                         HStack {
-                                            Button(action: { loadSequence(saved) }) {
+                                            Button(action: { loadSequenceForEditing(saved) }) {
                                                 VStack(alignment: .leading, spacing: 4) {
                                                     Text(saved.name)
                                                         .font(.subheadline)
@@ -361,6 +364,14 @@ struct CustomSequenceView: View {
                                                 }
                                                 .frame(maxWidth: .infinity, alignment: .leading)
                                             }
+                                            .buttonStyle(.plain)
+                                            
+                                            Button(action: { loadSequence(saved) }) {
+                                                Image(systemName: "play.fill")
+                                                    .font(.body)
+                                            }
+                                            .buttonStyle(.borderedProminent)
+                                            .tint(.green)
                                             
                                             Button(action: { exportSequence(saved) }) {
                                                 Image(systemName: "square.and.arrow.up")
@@ -421,6 +432,13 @@ struct CustomSequenceView: View {
                             .buttonStyle(.bordered)
                         }
                     }
+                    .onChange(of: shouldScrollToTop) { newValue in
+                        if newValue {
+                            scrollProxy.scrollTo(0, anchor: .top)
+                            shouldScrollToTop = false
+                        }
+                    }
+                    } // ScrollViewReader
                     Spacer()
                 }
             }
@@ -725,9 +743,10 @@ struct CustomSequenceView: View {
     
     private func loadSequenceForEditing(_ sequence: SavedSequence) {
         poses = sequence.poses
-        sequenceName = ""
+        sequenceName = sequence.name
         showingDial = false
         inSession = false
+        shouldScrollToTop = true
         // Don't start - just load for editing
     }
     
@@ -850,7 +869,35 @@ struct CustomSequenceView: View {
         ]
         
         let presetSequence = SavedSequence(name: presetName, poses: poses, isPreset: true)
-        return [presetSequence]
+        
+        let fasterPoses: [Pose] = [
+            Pose(name: "Prayer Pose", transitionTime: 5, instruction: "Hands to heart center.", holdTime: 5, holdPrompt: "Ground yourself."),
+            Pose(name: "Raised Arms Pose", transitionTime: 5, instruction: "Inhale, arms overhead.", holdTime: 5, holdPrompt: "Feel the stretch."),
+            Pose(name: "Forward Fold", transitionTime: 5, instruction: "Exhale, fold forward.", holdTime: 5, holdPrompt: "Relax neck and shoulders."),
+            Pose(name: "Low Lunge Right", transitionTime: 5, instruction: "Right foot back, low lunge.", holdTime: 5, holdPrompt: "Knee over ankle."),
+            Pose(name: "Plank", transitionTime: 5, instruction: "Step back to plank.", holdTime: 5, holdPrompt: "Engage your core."),
+            Pose(name: "Eight Limbed Pose", transitionTime: 5, instruction: "Exhale, lower to eight points.", holdTime: 5, holdPrompt: "Strength and surrender."),
+            Pose(name: "Cobra Pose", transitionTime: 5, instruction: "Inhale, press chest up to cobra.", holdTime: 5, holdPrompt: "Open your chest."),
+            Pose(name: "Downward Facing Dog", transitionTime: 5, instruction: "Exhale, push back to down dog.", holdTime: 5, holdPrompt: "Press through your hands."),
+            Pose(name: "Low Lunge Right Forward", transitionTime: 5, instruction: "Right foot forward, low lunge.", holdTime: 5, holdPrompt: "Knee over ankle."),
+            Pose(name: "Forward Fold", transitionTime: 5, instruction: "Step forward and fold.", holdTime: 5, holdPrompt: "Release all tension."),
+            Pose(name: "Raised Arms Pose", transitionTime: 5, instruction: "Sweep arms up.", holdTime: 5, holdPrompt: "Embrace the moment."),
+            Pose(name: "Prayer Pose", transitionTime: 5, instruction: "Exhale, hands to heart center.", holdTime: 5, holdPrompt: "Halfway there."),
+            Pose(name: "Raised Arms Pose", transitionTime: 5, instruction: "Inhale, arms overhead.", holdTime: 5, holdPrompt: "Feel the stretch."),
+            Pose(name: "Forward Fold", transitionTime: 5, instruction: "Exhale, fold forward.", holdTime: 5, holdPrompt: "Relax neck and shoulders."),
+            Pose(name: "Low Lunge Left", transitionTime: 5, instruction: "Left foot back, low lunge.", holdTime: 5, holdPrompt: "Knee over ankle."),
+            Pose(name: "Plank", transitionTime: 5, instruction: "Step back to plank.", holdTime: 5, holdPrompt: "Engage your core."),
+            Pose(name: "Eight Limbed Pose", transitionTime: 5, instruction: "Exhale, lower to eight points.", holdTime: 5, holdPrompt: "Strength and surrender."),
+            Pose(name: "Cobra Pose", transitionTime: 5, instruction: "Inhale, press chest up to cobra.", holdTime: 5, holdPrompt: "Open your chest."),
+            Pose(name: "Downward Facing Dog", transitionTime: 5, instruction: "Exhale, push back to down dog.", holdTime: 5, holdPrompt: "Press through your hands."),
+            Pose(name: "Low Lunge Left Forward", transitionTime: 5, instruction: "Left foot forward, low lunge.", holdTime: 5, holdPrompt: "Knee over ankle."),
+            Pose(name: "Forward Fold", transitionTime: 5, instruction: "Step forward and fold.", holdTime: 5, holdPrompt: "Release all tension."),
+            Pose(name: "Raised Arms Pose", transitionTime: 5, instruction: "Sweep arms up.", holdTime: 5, holdPrompt: "Embrace the moment."),
+            Pose(name: "Prayer Pose", transitionTime: 5, instruction: "Exhale, hands to heart center.", holdTime: 5, holdPrompt: "One full cycle complete.")
+        ]
+        let fasterSequence = SavedSequence(name: "Sun Salutation (faster)", poses: fasterPoses, isPreset: true)
+        
+        return [presetSequence, fasterSequence]
     }
 }
 

@@ -433,16 +433,27 @@ struct KriyaView: View {
                         if !getSavedKriyas().isEmpty {
                             Section {
                                 ForEach(getSavedKriyas()) { saved in
-                                    Button(action: { loadKriya(saved) }) {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(saved.name)
-                                                .font(.subheadline)
-                                                .fontWeight(.semibold)
-                                                .foregroundColor(.primary)
-                                            Text("\(saved.stages.count) stage\(saved.stages.count == 1 ? "" : "s")")
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
+                                    HStack {
+                                        Button(action: { loadKriyaForEditing(saved) }) {
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                Text(saved.name)
+                                                    .font(.subheadline)
+                                                    .fontWeight(.semibold)
+                                                    .foregroundColor(.primary)
+                                                Text("\(saved.stages.count) stage\(saved.stages.count == 1 ? "" : "s")")
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                            .frame(maxWidth: .infinity, alignment: .leading)
                                         }
+                                        .buttonStyle(.plain)
+                                        
+                                        Button(action: { loadKriya(saved) }) {
+                                            Image(systemName: "play.fill")
+                                                .font(.body)
+                                        }
+                                        .buttonStyle(.borderedProminent)
+                                        .tint(.green)
                                     }
                                 }
                                 .onDelete { indexSet in
@@ -901,7 +912,7 @@ struct KriyaView: View {
         kriyaBreathOutLabel = kriya.kriyaBreathOutLabel
         selectedCombinedOption = "\(kriyaBreathInLabel), \(kriyaBreathOutLabel)"
         roundCount = kriya.roundCount
-        kriyaName = ""
+        kriyaName = kriya.name
         // For preset Kapalbhati, set rest to 10s
         if kriya.isPreset && kriya.name == "Example Kapalbhati" {
             restBetweenRoundsSeconds = 10
