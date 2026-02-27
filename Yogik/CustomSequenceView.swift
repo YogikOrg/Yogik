@@ -91,6 +91,9 @@ struct CustomSequenceView: View {
     @State private var roundsInput: String = "1"
     @State private var totalRounds: Int = 1
     @State private var currentRound: Int = 1
+    @State private var stashedPoses: [Pose] = []
+    @State private var stashedName: String = ""
+    @State private var hasStashedState: Bool = false
     
     @AppStorage("selectedVoiceID") private var selectedVoiceID: String = ""
     @AppStorage("prepTimeSeconds") private var prepTimeSeconds: Int = 5
@@ -469,11 +472,6 @@ struct CustomSequenceView: View {
                 
                 // Load preset sequences separately
                 presetSequences = getPresetSequences()
-                
-                // Expand first pose by default if there's only one pose
-                if poses.count == 1, let firstPose = poses.first {
-                    expandedPoseId = firstPose.id
-                }
             }
             .onDisappear {
                 stop()
@@ -610,6 +608,14 @@ struct CustomSequenceView: View {
         totalRounds = 1
         currentRound = 1
         UIApplication.shared.isIdleTimerDisabled = false
+        // Restore editing state if we stashed it for a quick-start
+        if hasStashedState {
+            poses = stashedPoses
+            sequenceName = stashedName
+            stashedPoses = []
+            stashedName = ""
+            hasStashedState = false
+        }
     }
     
     private func togglePause() {
@@ -690,13 +696,7 @@ struct CustomSequenceView: View {
         // Collapse current expanded pose
         expandedPoseId = nil
         
-        // Add new pose, prefilled from last pose if available
-        let newPose: Pose
-        if let last = poses.last {
-            newPose = Pose(name: last.name, transitionTime: last.transitionTime, instruction: last.instruction, holdTime: last.holdTime, holdPrompt: last.holdPrompt)
-        } else {
-            newPose = Pose()
-        }
+        let newPose = Pose()
         poses.append(newPose)
         
         // Expand the newly added pose
@@ -734,6 +734,10 @@ struct CustomSequenceView: View {
     }
     
     private func loadSequence(_ sequence: SavedSequence) {
+        // Stash current editing state so it can be restored after the session
+        stashedPoses = poses
+        stashedName = sequenceName
+        hasStashedState = true
         poses = sequence.poses
         sequenceName = ""
         showingDial = false

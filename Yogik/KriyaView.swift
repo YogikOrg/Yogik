@@ -135,11 +135,11 @@ struct KriyaView: View {
             opts.insert(combination, at: opts.count - 1) // Insert before "Custom text"
         }
         
-        // Always include current combination if not already present
+        // Always include current combination if not already present (allow empty in-label)
         let currentIn = kriyaBreathInLabel.trimmingCharacters(in: .whitespacesAndNewlines)
         let currentOut = kriyaBreathOutLabel.trimmingCharacters(in: .whitespacesAndNewlines)
         let currentCombination = "\(currentIn), \(currentOut)"
-        if !currentIn.isEmpty && !currentOut.isEmpty && !opts.contains(currentCombination) {
+        if !currentOut.isEmpty && !opts.contains(currentCombination) {
             opts.insert(currentCombination, at: 0)
         }
         return opts
