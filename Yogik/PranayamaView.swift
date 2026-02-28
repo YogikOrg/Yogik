@@ -118,12 +118,14 @@ struct PranayamaView: View {
                             }
                         }
                         .buttonStyle(.bordered)
+                        .hapticOnTap()
                         .disabled(!inSession || inPrepPhase)
 
                         Button(action: stop) {
                             Label("Stop", systemImage: "stop.fill")
                         }
                         .buttonStyle(.borderedProminent)
+                        .hapticOnTap()
                         .disabled(!inSession)
                     }
                     .padding()
@@ -224,6 +226,7 @@ struct PranayamaView: View {
                                 .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.borderedProminent)
+                            .hapticOnTap()
                             .disabled(isRunning)
                         }
                         
@@ -325,6 +328,7 @@ struct PranayamaView: View {
                 Button("OK", role: .cancel) {}
             }
         }
+        .buttonStyle(PressEffectStyle())
     }
     
     private var totalCycleTime: Int {

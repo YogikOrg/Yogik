@@ -95,12 +95,14 @@ struct YogaView: View {
                             }
                         }
                         .buttonStyle(.bordered)
+                        .hapticOnTap()
                         .disabled(!inSession || inPrepPhase)
 
                         Button(action: stopSession) {
                             Label("Stop", systemImage: "stop.fill")
                         }
                         .buttonStyle(.borderedProminent)
+                        .hapticOnTap()
                         .disabled(!inSession)
                     }
                     .padding()
@@ -170,6 +172,7 @@ struct YogaView: View {
                                 .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.borderedProminent)
+                            .hapticOnTap()
                             .disabled(session.isRunning || (transitionSeconds + holdSeconds) == 0)
                         }
                         
@@ -282,6 +285,7 @@ struct YogaView: View {
         .onAppear {
             loadHistory()
         }
+        .buttonStyle(PressEffectStyle())
     }
 
     private var currentPhaseTotal: Int {

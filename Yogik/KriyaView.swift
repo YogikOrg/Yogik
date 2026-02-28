@@ -246,6 +246,7 @@ struct KriyaView: View {
                                 Label("Done", systemImage: "checkmark.circle.fill")
                             }
                             .buttonStyle(.borderedProminent)
+                            .hapticOnTap()
                         }
                         .padding()
                     } else {
@@ -258,12 +259,14 @@ struct KriyaView: View {
                                 }
                             }
                             .buttonStyle(.bordered)
+                            .hapticOnTap()
                             .disabled(!inSession || inPrepPhase || phase == .rest)
 
                             Button(action: stop) {
                                 Label("Stop", systemImage: "stop.fill")
                             }
                             .buttonStyle(.borderedProminent)
+                            .hapticOnTap()
                             .disabled(!inSession)
                         }
                         .padding()
@@ -427,6 +430,7 @@ struct KriyaView: View {
                                 .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.borderedProminent)
+                            .hapticOnTap()
                             .disabled(session.isRunning || stages.isEmpty || kriyaName.trimmingCharacters(in: .whitespaces).isEmpty)
                         }
                         
@@ -453,6 +457,7 @@ struct KriyaView: View {
                                                 .font(.body)
                                         }
                                         .buttonStyle(.borderedProminent)
+                                        .hapticOnTap()
                                         .tint(.green)
                                     }
                                 }
@@ -588,6 +593,7 @@ struct KriyaView: View {
                     }
                 }
             }
+        .buttonStyle(PressEffectStyle())
     }
     
     private var progress: Double {

@@ -85,6 +85,7 @@ struct CustomSequenceView: View {
     @State private var selectedSequenceForExport: SavedSequence?
     @State private var showingShareSheet: Bool = false
     @State private var shouldScrollToTop: Bool = false
+    @State private var scrollToNewPose: UUID? = nil
     @State private var savedSequences: [SavedSequence] = []
     @State private var presetSequences: [SavedSequence] = []
     @State private var showingRoundsPrompt: Bool = false
@@ -192,6 +193,7 @@ struct CustomSequenceView: View {
                                 Label("Done", systemImage: "checkmark.circle.fill")
                             }
                             .buttonStyle(.borderedProminent)
+                            .hapticOnTap()
                         }
                         .padding()
                     } else {
@@ -204,12 +206,14 @@ struct CustomSequenceView: View {
                                 }
                             }
                             .buttonStyle(.bordered)
+                            .hapticOnTap()
                             .disabled(!inSession || inPrepPhase)
 
                             Button(action: stop) {
                                 Label("Stop", systemImage: "stop.fill")
                             }
                             .buttonStyle(.borderedProminent)
+                            .hapticOnTap()
                             .disabled(!inSession)
                         }
                         .padding()
@@ -326,6 +330,7 @@ struct CustomSequenceView: View {
                                             .foregroundColor(.secondary)
                                     }
                                 }
+                                .id(pose.id)
                             }
                             .onDelete(perform: deletePose)
                             .onMove(perform: movePose)
@@ -347,6 +352,7 @@ struct CustomSequenceView: View {
                                 .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.borderedProminent)
+                            .hapticOnTap()
                             .disabled(sequenceName.trimmingCharacters(in: .whitespaces).isEmpty || poses.isEmpty || poses.allSatisfy { $0.name.isEmpty })
                         }
                         
@@ -374,6 +380,7 @@ struct CustomSequenceView: View {
                                                     .font(.body)
                                             }
                                             .buttonStyle(.borderedProminent)
+                                            .hapticOnTap()
                                             .tint(.green)
                                             
                                             Button(action: { exportSequence(saved) }) {
@@ -381,6 +388,7 @@ struct CustomSequenceView: View {
                                                     .font(.body)
                                             }
                                             .buttonStyle(.bordered)
+                                            .hapticOnTap()
                                             
                                             Button(action: { 
                                                 deleteSavedSequenceByID(saved.id)
@@ -390,6 +398,7 @@ struct CustomSequenceView: View {
                                                     .font(.body)
                                             }
                                             .buttonStyle(.bordered)
+                                            .hapticOnTap(.medium)
                                             .tint(.red)
                                         }
                                     }
@@ -439,6 +448,16 @@ struct CustomSequenceView: View {
                         if newValue {
                             scrollProxy.scrollTo(0, anchor: .top)
                             shouldScrollToTop = false
+                        }
+                    }
+                    .onChange(of: scrollToNewPose) { poseID in
+                        if let id = poseID {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                withAnimation {
+                                    scrollProxy.scrollTo(id, anchor: .top)
+                                }
+                            }
+                            scrollToNewPose = nil
                         }
                     }
                     } // ScrollViewReader
@@ -503,6 +522,7 @@ struct CustomSequenceView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .buttonStyle(.borderedProminent)
+                        .hapticOnTap()
                     }
                 }
                 .padding()
@@ -516,6 +536,7 @@ struct CustomSequenceView: View {
                 }
             )
         }
+        .buttonStyle(PressEffectStyle())
     }
     
     private var elapsedDisplay: Int { Int(elapsedSeconds) }
@@ -696,11 +717,18 @@ struct CustomSequenceView: View {
         // Collapse current expanded pose
         expandedPoseId = nil
         
-        let newPose = Pose()
+        // Blank pose, but prefill timings from last pose if available
+        let newPose: Pose
+        if let last = poses.last {
+            newPose = Pose(transitionTime: last.transitionTime, holdTime: last.holdTime)
+        } else {
+            newPose = Pose()
+        }
         poses.append(newPose)
         
-        // Expand the newly added pose
+        // Expand and scroll to the newly added pose
         expandedPoseId = newPose.id
+        scrollToNewPose = newPose.id
     }
     
     private func deletePose(at offsets: IndexSet) {
